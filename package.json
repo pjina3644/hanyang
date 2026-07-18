@@ -1,0 +1,24 @@
+{
+  "name": "pinky-fitness",
+  "version": "1.0.0",
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "web": "expo start --web --port 5000"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "~4.0.0",
+    "expo": "~52.0.0",
+    "expo-contacts": "~14.0.0",
+    "expo-sensors": "~14.0.0",
+    "expo-sms": "~13.0.1",
+    "firebase": "^10.7.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-native": "^0.76.9",
+    "react-native-web": "~0.19.13"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0"
+  }
+}
