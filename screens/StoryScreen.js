@@ -1,97 +1,75 @@
 import React, { useState, useEffect } from 'react';
 import {
   StyleSheet, View, Text, TouchableOpacity,
-  ScrollView, ActivityIndicator, Alert
+  ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { getUserStats, getStoryHistory, saveStoryHistory, updateUserStats, getAppSettings } from '../services/firebase';
 import { generateNextStorySegment, getRandomTheme, STORY_THEMES } from '../services/aiStory';
 
-// 누적 걸음수 1,000보당 1챕터 해금
 const STEPS_PER_CHAPTER = 1000;
 
 export default function StoryScreen() {
-  const [history, setHistory] = useState([]);
+  const [history, setHistory]                   = useState([]);
   const [accumulatedSteps, setAccumulatedSteps] = useState(0);
-  const [points, setPoints] = useState(0);
-  const [nickname, setNickname] = useState('핑키');
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeTheme, setActiveTheme] = useState(null);
+  const [points, setPoints]                     = useState(0);
+  const [nickname, setNickname]                 = useState('핑키');
+  const [isLoading, setIsLoading]               = useState(false);
+  const [activeTheme, setActiveTheme]           = useState(null);
 
-  // 해금 가능한 챕터 수 = Math.floor(누적걸음 / 1000)
-  // 이미 쓴 챕터 수 = history.length
-  const unlockedChapters = Math.floor(accumulatedSteps / STEPS_PER_CHAPTER);
+  const unlockedChapters    = Math.floor(accumulatedSteps / STEPS_PER_CHAPTER);
   const canWriteNextChapter = unlockedChapters > history.length;
-  const stepsToNextChapter = history.length > 0
+  const stepsToNext         = history.length > 0
     ? Math.max(0, (history.length + 1) * STEPS_PER_CHAPTER - accumulatedSteps)
     : Math.max(0, STEPS_PER_CHAPTER - accumulatedSteps);
 
   useEffect(() => {
-    const loadData = async () => {
-      const stats = await getUserStats();
+    const load = async () => {
+      const stats    = await getUserStats();
+      const settings = await getAppSettings();
+      const hist     = await getStoryHistory();
       setAccumulatedSteps(stats.accumulatedSteps || 0);
       setPoints(stats.points || 0);
-
-      const settings = await getAppSettings();
       setNickname(settings.nickname || '핑키');
-
-      const hist = await getStoryHistory();
       setHistory(hist);
-
-      // 저장된 테마가 있으면 복원, 없으면 랜덤 배정
       if (hist.length > 0 && hist[0].themeId) {
-        const found = STORY_THEMES.find(t => t.id === hist[0].themeId);
-        setActiveTheme(found || getRandomTheme());
-      } else if (hist.length === 0) {
+        setActiveTheme(STORY_THEMES.find(t => t.id === hist[0].themeId) || getRandomTheme());
+      } else {
         setActiveTheme(getRandomTheme());
       }
     };
-    loadData();
+    load();
   }, []);
 
   const handleUnlockNextStory = async (selectedOptionText = '', cost = 0) => {
     if (!canWriteNextChapter && history.length > 0) {
-      Alert.alert('걸음 부족', `다음 챕터를 열려면 ${stepsToNextChapter.toLocaleString()}보를 더 걸어야 합니다.`);
+      Alert.alert('걸음 부족', `다음 챕터까지 ${stepsToNext.toLocaleString()}보 더 필요합니다.`);
       return;
     }
-    if (points < cost) {
-      Alert.alert('포인트 부족', `이 선택지는 ${cost}P가 필요합니다. 현재 ${points}P`);
-      return;
-    }
+    if (points < cost) { Alert.alert('포인트 부족', `${cost}P 필요, 현재 ${points}P`); return; }
 
     setIsLoading(true);
     try {
       const nextPoints = points - cost;
       setPoints(nextPoints);
+      let updated = [...history];
+      if (selectedOptionText && updated.length > 0)
+        updated[updated.length - 1].selectedOption = selectedOptionText;
 
-      let updatedHistory = [...history];
-      if (selectedOptionText && updatedHistory.length > 0) {
-        updatedHistory[updatedHistory.length - 1].selectedOption = selectedOptionText;
-      }
-
-      const theme = activeTheme || getRandomTheme();
-      const segment = await generateNextStorySegment(
-        updatedHistory,
-        selectedOptionText,
-        theme,
-        accumulatedSteps,
-        nickname,
-      );
-
+      const theme   = activeTheme || getRandomTheme();
+      const segment = await generateNextStorySegment(updated, selectedOptionText, theme, accumulatedSteps, nickname);
       const newItem = {
-        id: (updatedHistory.length + 1).toString(),
+        id: (updated.length + 1).toString(),
         content: segment.content,
         options: segment.options,
         themeId: segment.themeId || theme.id,
         selectedOption: null,
       };
-
-      updatedHistory.push(newItem);
-      setHistory(updatedHistory);
-      await saveStoryHistory(updatedHistory);
+      updated.push(newItem);
+      setHistory(updated);
+      await saveStoryHistory(updated);
       await updateUserStats({ points: nextPoints });
-
     } catch (err) {
-      console.error(err);
       Alert.alert('오류', '스토리를 불러오는 중 에러가 발생했습니다.');
     } finally {
       setIsLoading(false);
@@ -99,135 +77,161 @@ export default function StoryScreen() {
   };
 
   const handleResetStory = () => {
-    Alert.alert(
-      '스토리 초기화',
-      '스토리를 처음부터 다시 시작하고 랜덤 테마를 바꿉니다. 진행한 내용은 삭제됩니다.',
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '초기화', style: 'destructive',
-          onPress: async () => {
-            const newTheme = getRandomTheme();
-            setActiveTheme(newTheme);
-            setHistory([]);
-            await saveStoryHistory([]);
-          }
-        }
-      ]
+    Alert.alert('스토리 초기화', '처음부터 다시 시작하고 테마를 바꿉니다. 진행 내용이 삭제됩니다.',
+      [{ text: '취소', style: 'cancel' },
+       { text: '초기화', style: 'destructive', onPress: async () => {
+         const t = getRandomTheme(); setActiveTheme(t); setHistory([]);
+         await saveStoryHistory([]);
+       }}]
     );
   };
 
-  const themeInfo = activeTheme || STORY_THEMES[0];
+  const theme = activeTheme || STORY_THEMES[0];
 
   return (
     <View style={styles.container}>
-      {/* 헤더 */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>📖 {nickname}의 모험</Text>
-          {activeTheme && (
-            <View style={styles.themeBadge}>
-              <Text style={styles.themeText}>{themeInfo.name}</Text>
+
+      {/* ─── 헤더 ─── */}
+      <LinearGradient colors={['#4C1D95', '#7C3AED']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.headerTitle}>📖 {nickname}의 모험</Text>
+            {theme && (
+              <View style={styles.themePill}>
+                <Text style={styles.themeText}>{theme.name}</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.headerStats}>
+            <View style={styles.statChip}>
+              <Text style={styles.statChipText}>⚡ {points}P</Text>
             </View>
-          )}
+            <View style={[styles.statChip, { marginTop: 5 }]}>
+              <Text style={styles.statChipText}>🚶 {accumulatedSteps.toLocaleString()}</Text>
+            </View>
+            <TouchableOpacity onPress={handleResetStory} style={styles.resetBtn}>
+              <Text style={styles.resetText}>🔀 테마 변경</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-        <View style={styles.headerRight}>
-          <Text style={styles.statusText}>⚡ {points}P</Text>
-          <Text style={styles.statusText}>🚶 {accumulatedSteps.toLocaleString()}보</Text>
-          <TouchableOpacity onPress={handleResetStory} style={styles.resetBtn}>
-            <Text style={styles.resetText}>🔀 테마변경</Text>
-          </TouchableOpacity>
+
+        {/* 챕터 해금 진행 */}
+        <View style={styles.progressRow}>
+          <View style={styles.chapterCountBox}>
+            <Text style={styles.chapterCountNum}>{unlockedChapters}</Text>
+            <Text style={styles.chapterCountLabel}>해금 챕터</Text>
+          </View>
+          <View style={styles.progressBarWrap}>
+            <View style={styles.progressBg}>
+              <View style={[styles.progressFill, {
+                width: `${Math.min(100, ((accumulatedSteps % STEPS_PER_CHAPTER) / STEPS_PER_CHAPTER) * 100)}%`
+              }]} />
+            </View>
+            <Text style={styles.progressHint}>
+              {stepsToNext > 0 ? `다음 챕터까지 ${stepsToNext.toLocaleString()}보` : '챕터 해금 가능!'}
+            </Text>
+          </View>
         </View>
-      </View>
+      </LinearGradient>
 
-      {/* 걸음수 기반 해금 진행률 */}
-      <View style={styles.unlockBar}>
-        <Text style={styles.unlockBarText}>
-          📡 해금된 챕터: <Text style={{ fontWeight: 'bold', color: '#FF6B6B' }}>{unlockedChapters}개</Text>
-          {'  '}|{'  '}
-          다음 챕터까지: <Text style={{ fontWeight: 'bold' }}>{stepsToNextChapter.toLocaleString()}보</Text>
-        </Text>
-      </View>
+      {/* ─── 스토리 타임라인 ─── */}
+      <ScrollView style={styles.timeline} contentContainerStyle={styles.timelineContent} showsVerticalScrollIndicator={false}>
 
-      <ScrollView style={styles.timeline} contentContainerStyle={styles.timelineContent}>
-
-        {/* 스토리 없을 때 시작 안내 */}
+        {/* 시작 카드 */}
         {history.length === 0 && !isLoading && (
           <View style={styles.startCard}>
             <Text style={styles.startEmoji}>🎲</Text>
-            <Text style={styles.startThemeName}>{themeInfo.name}</Text>
-            <Text style={styles.startThemeDesc}>{themeInfo.desc}</Text>
-            <Text style={styles.startDesc}>
+            <Text style={styles.startThemeName}>{theme.name}</Text>
+            <Text style={styles.startThemeDesc}>{theme.desc}</Text>
+            <Text style={styles.startHint}>
               {accumulatedSteps >= STEPS_PER_CHAPTER
-                ? `${STEPS_PER_CHAPTER.toLocaleString()}보 달성! 첫 챕터를 시작할 수 있습니다.`
-                : `첫 챕터를 열려면 ${stepsToNextChapter.toLocaleString()}보를 더 걸어야 합니다.`}
+                ? '첫 챕터를 시작할 수 있습니다!'
+                : `첫 챕터까지 ${stepsToNext.toLocaleString()}보 남았어요`}
             </Text>
             {accumulatedSteps >= STEPS_PER_CHAPTER && (
-              <TouchableOpacity style={styles.startBtn} onPress={() => handleUnlockNextStory('', 0)}>
-                <Text style={styles.startBtnText}>🚀 이야기 시작!</Text>
+              <TouchableOpacity onPress={() => handleUnlockNextStory('', 0)} activeOpacity={0.85}>
+                <LinearGradient colors={['#7C3AED', '#4C1D95']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.startBtn}>
+                  <Text style={styles.startBtnText}>🚀 이야기 시작!</Text>
+                </LinearGradient>
               </TouchableOpacity>
             )}
           </View>
         )}
 
-        {/* 스토리 챕터 목록 */}
+        {/* 챕터 카드 */}
         {history.map((story, index) => (
-          <View key={story.id} style={styles.storyCard}>
-            <View style={styles.chapterBadge}>
-              <Text style={styles.chapterText}>Chapter {index + 1}</Text>
+          <View key={story.id} style={styles.chapterCard}>
+            {/* 왼쪽 타임라인 선 */}
+            <View style={styles.timelineLine} />
+
+            {/* 챕터 번호 노드 */}
+            <LinearGradient colors={['#7C3AED', '#4C1D95']} style={styles.chapterNode}>
+              <Text style={styles.chapterNodeText}>{index + 1}</Text>
+            </LinearGradient>
+
+            <View style={styles.chapterBody}>
+              <Text style={styles.chapterLabel}>Chapter {index + 1}</Text>
+              <Text style={styles.storyText}>{story.content}</Text>
+
+              {/* 선택한 행동 */}
+              {story.selectedOption && (
+                <View style={styles.choiceBox}>
+                  <Text style={styles.choiceArrow}>→</Text>
+                  <Text style={styles.choiceText}>{story.selectedOption}</Text>
+                </View>
+              )}
+
+              {/* 마지막 챕터 선택지 */}
+              {index === history.length - 1 && story.options && !story.selectedOption && (
+                <View style={styles.optionsBox}>
+                  <Text style={styles.optionHint}>행동을 선택하세요</Text>
+                  {story.options.map((opt, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      onPress={() => handleUnlockNextStory(opt.text, opt.costPoints)}
+                      activeOpacity={0.80}
+                      style={{ marginBottom: 8 }}
+                    >
+                      <LinearGradient
+                        colors={['#FF4D80', '#C2185B']}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                        style={styles.optionBtn}
+                      >
+                        <Text style={styles.optionText}>{opt.text}</Text>
+                        <View style={styles.optionCostChip}>
+                          <Text style={styles.optionCostText}>⚡ {opt.costPoints}P</Text>
+                        </View>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
-
-            <Text style={styles.storyText}>{story.content}</Text>
-
-            {story.selectedOption && (
-              <View style={styles.choiceBox}>
-                <Text style={styles.choiceLabel}>내 선택 ➡️</Text>
-                <Text style={styles.choiceText}>{story.selectedOption}</Text>
-              </View>
-            )}
-
-            {/* 마지막 챕터의 선택지 */}
-            {index === history.length - 1 && story.options && !story.selectedOption && (
-              <View style={styles.optionsWrap}>
-                <Text style={styles.optionHint}>행동을 선택하세요 (포인트 소모):</Text>
-                {story.options.map((opt, i) => (
-                  <TouchableOpacity
-                    key={i}
-                    style={styles.optionBtn}
-                    onPress={() => handleUnlockNextStory(opt.text, opt.costPoints)}
-                  >
-                    <Text style={styles.optionText}>{opt.text}</Text>
-                    <Text style={styles.optionCost}>⚡ {opt.costPoints}P</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
           </View>
         ))}
 
+        {/* 로딩 */}
         {isLoading && (
           <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color="#FF8787" />
-            <Text style={styles.loadingText}>AI가 다음 이야기를 쓰고 있습니다...</Text>
+            <ActivityIndicator size="large" color="#7C3AED" />
+            <Text style={styles.loadingText}>AI가 다음 이야기를 쓰고 있어요...</Text>
           </View>
         )}
 
-        {/* 선택 완료 후 다음 챕터 해금 여부 */}
+        {/* 다음 챕터 패널 */}
         {!isLoading && history.length > 0 && history[history.length - 1].selectedOption && (
-          <View style={styles.nextChapterPanel}>
+          <View style={styles.nextPanel}>
             {canWriteNextChapter ? (
-              <View style={styles.unlockActiveBox}>
-                <Text style={styles.unlockMsg}>🎉 다음 챕터가 해금되었습니다!</Text>
-                <TouchableOpacity style={styles.unlockBtn} onPress={() => handleUnlockNextStory('', 0)}>
-                  <Text style={styles.unlockBtnText}>📖 다음 챕터 읽기 (0P)</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity onPress={() => handleUnlockNextStory('', 0)} activeOpacity={0.85}>
+                <LinearGradient colors={['#22C55E', '#16A34A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.nextBtn}>
+                  <Text style={styles.nextBtnText}>📖 다음 챕터 읽기</Text>
+                </LinearGradient>
+              </TouchableOpacity>
             ) : (
-              <View style={styles.lockedBox}>
-                <Text style={styles.lockedIcon}>🔒 다음 챕터 잠김</Text>
-                <Text style={styles.lockedDesc}>
-                  {stepsToNextChapter.toLocaleString()}보를 더 걸면 해금됩니다
-                </Text>
+              <View style={styles.lockedCard}>
+                <Text style={styles.lockedIcon}>🔒</Text>
+                <Text style={styles.lockedTitle}>다음 챕터 잠김</Text>
+                <Text style={styles.lockedDesc}>{stepsToNext.toLocaleString()}보를 더 걸면 해금됩니다</Text>
               </View>
             )}
           </View>
@@ -238,70 +242,98 @@ export default function StoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FA' },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
-    padding: 16, backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1, borderBottomColor: '#E9ECEF',
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
-  },
-  title: { fontSize: 18, fontWeight: 'bold', color: '#343A40', marginBottom: 4 },
-  themeBadge: { backgroundColor: '#FFF5F5', paddingVertical: 3, paddingHorizontal: 8, borderRadius: 6, alignSelf: 'flex-start' },
-  themeText: { fontSize: 11, color: '#FF6B6B', fontWeight: 'bold' },
-  headerRight: { alignItems: 'flex-end', gap: 4 },
-  statusText: { fontSize: 12, fontWeight: 'bold', color: '#495057', backgroundColor: '#F1F3F5', paddingVertical: 3, paddingHorizontal: 8, borderRadius: 6 },
-  resetBtn: { marginTop: 4 },
-  resetText: { fontSize: 11, color: '#4DABF7', fontWeight: 'bold' },
+  container: { flex: 1, backgroundColor: '#F8F4FF' },
 
-  unlockBar: { backgroundColor: '#FFF9DB', paddingVertical: 8, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#FFE066' },
-  unlockBarText: { fontSize: 12, color: '#664D03' },
+  /* 헤더 */
+  header: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 18 },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: '#FFFFFF', marginBottom: 6 },
+  themePill: { backgroundColor: 'rgba(255,255,255,0.20)', alignSelf: 'flex-start', paddingVertical: 3, paddingHorizontal: 10, borderRadius: 10 },
+  themeText: { fontSize: 11, color: '#E9D5FF', fontWeight: '700' },
+  headerStats: { alignItems: 'flex-end' },
+  statChip: { backgroundColor: 'rgba(255,255,255,0.18)', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10 },
+  statChipText: { fontSize: 12, color: '#FFFFFF', fontWeight: '700' },
+  resetBtn: { marginTop: 8 },
+  resetText: { fontSize: 11, color: '#C4B5FD', fontWeight: '700' },
+  progressRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  chapterCountBox: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 14 },
+  chapterCountNum: { fontSize: 22, fontWeight: '900', color: '#FFFFFF' },
+  chapterCountLabel: { fontSize: 10, color: '#C4B5FD', fontWeight: '600' },
+  progressBarWrap: { flex: 1 },
+  progressBg: { height: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 4, overflow: 'hidden', marginBottom: 5 },
+  progressFill: { height: '100%', backgroundColor: '#E9D5FF', borderRadius: 4 },
+  progressHint: { fontSize: 11, color: '#C4B5FD', fontWeight: '600' },
 
+  /* 타임라인 */
   timeline: { flex: 1 },
-  timelineContent: { padding: 16, paddingBottom: 40 },
+  timelineContent: { paddingVertical: 20, paddingHorizontal: 16, paddingBottom: 40 },
 
+  /* 시작 카드 */
   startCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 20, padding: 30,
+    backgroundColor: '#FFFFFF', borderRadius: 22, padding: 28,
     alignItems: 'center', marginBottom: 20,
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+    shadowColor: '#7C3AED', shadowOpacity: 0.10, shadowRadius: 14, shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
   },
-  startEmoji: { fontSize: 48, marginBottom: 12 },
-  startThemeName: { fontSize: 20, fontWeight: 'bold', color: '#343A40', marginBottom: 6 },
-  startThemeDesc: { fontSize: 13, color: '#868E96', textAlign: 'center', marginBottom: 16, lineHeight: 20 },
-  startDesc: { fontSize: 12, color: '#495057', textAlign: 'center', marginBottom: 20, lineHeight: 18 },
-  startBtn: { backgroundColor: '#FF8787', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32 },
-  startBtnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 15 },
+  startEmoji: { fontSize: 52, marginBottom: 10 },
+  startThemeName: { fontSize: 20, fontWeight: '800', color: '#1C1C28', marginBottom: 6 },
+  startThemeDesc: { fontSize: 13, color: '#9B9BAA', textAlign: 'center', lineHeight: 20, marginBottom: 14 },
+  startHint: { fontSize: 12, color: '#7C3AED', fontWeight: '600', marginBottom: 18, textAlign: 'center' },
+  startBtn: { borderRadius: 14, paddingVertical: 13, paddingHorizontal: 36 },
+  startBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
 
-  storyCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 20, marginBottom: 20,
-    shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+  /* 챕터 카드 */
+  chapterCard: { flexDirection: 'row', marginBottom: 6, paddingLeft: 8 },
+  timelineLine: {
+    position: 'absolute', left: 28, top: 32, bottom: -20,
+    width: 2, backgroundColor: '#E9D5FF',
   },
-  chapterBadge: { alignSelf: 'flex-start', backgroundColor: '#FFE3E3', paddingVertical: 3, paddingHorizontal: 8, borderRadius: 6, marginBottom: 12 },
-  chapterText: { fontSize: 11, color: '#FF6B6B', fontWeight: 'bold' },
-  storyText: { fontSize: 15, lineHeight: 26, color: '#343A40' },
-
-  choiceBox: { marginTop: 14, backgroundColor: '#F1F3F5', padding: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  choiceLabel: { fontSize: 11, fontWeight: 'bold', color: '#868E96' },
-  choiceText: { fontSize: 13, color: '#495057', fontWeight: '600', flex: 1 },
-
-  optionsWrap: { marginTop: 18, borderTopWidth: 1, borderTopColor: '#F1F3F5', paddingTop: 14 },
-  optionHint: { fontSize: 12, color: '#868E96', marginBottom: 10 },
-  optionBtn: {
-    backgroundColor: '#FFF4F4', borderWidth: 1, borderColor: '#FFE3E3', borderRadius: 12,
-    paddingVertical: 12, paddingHorizontal: 14, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+  chapterNode: {
+    width: 36, height: 36, borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: 12, marginTop: 0, flexShrink: 0,
+    shadowColor: '#7C3AED', shadowOpacity: 0.30, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
-  optionText: { fontSize: 13, color: '#E03131', fontWeight: '600', flex: 0.85 },
-  optionCost: { fontSize: 12, color: '#E03131', fontWeight: 'bold' },
+  chapterNodeText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
+  chapterBody: {
+    flex: 1, backgroundColor: '#FFFFFF', borderRadius: 18,
+    padding: 18, marginBottom: 16,
+    shadowColor: '#7C3AED', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  chapterLabel: { fontSize: 11, fontWeight: '700', color: '#A78BFA', marginBottom: 10, letterSpacing: 0.5, textTransform: 'uppercase' },
+  storyText: { fontSize: 15, lineHeight: 27, color: '#2D2D3A' },
 
-  loadingBox: { alignItems: 'center', padding: 24 },
-  loadingText: { fontSize: 13, color: '#868E96', marginTop: 10 },
+  /* 선택 표시 */
+  choiceBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    marginTop: 14, backgroundColor: '#F3F0FF', borderRadius: 10, padding: 12,
+  },
+  choiceArrow: { fontSize: 16, color: '#7C3AED', fontWeight: '800' },
+  choiceText: { flex: 1, fontSize: 13, color: '#4C1D95', fontWeight: '600', lineHeight: 19 },
 
-  nextChapterPanel: { marginTop: 8, alignItems: 'center' },
-  unlockActiveBox: { width: '100%', backgroundColor: '#E8F7F0', borderWidth: 1, borderColor: '#C2EAD6', borderRadius: 14, padding: 18, alignItems: 'center' },
-  unlockMsg: { fontSize: 13, color: '#2B8A3E', fontWeight: 'bold', textAlign: 'center', marginBottom: 12 },
-  unlockBtn: { backgroundColor: '#37B24D', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 24 },
-  unlockBtnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 },
-  lockedBox: { width: '100%', backgroundColor: '#F1F3F5', borderWidth: 1, borderColor: '#E9ECEF', borderRadius: 14, padding: 20, alignItems: 'center' },
-  lockedIcon: { fontSize: 15, fontWeight: 'bold', color: '#868E96', marginBottom: 6 },
-  lockedDesc: { fontSize: 12, color: '#FF6B6B', fontWeight: 'bold' },
+  /* 선택지 */
+  optionsBox: { marginTop: 18, borderTopWidth: 1, borderTopColor: '#F3F0FF', paddingTop: 14 },
+  optionHint: { fontSize: 12, color: '#B0B0BC', marginBottom: 10, fontWeight: '600' },
+  optionBtn: { borderRadius: 13, paddingVertical: 13, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  optionText: { fontSize: 13, color: '#FFFFFF', fontWeight: '700', flex: 1, lineHeight: 18 },
+  optionCostChip: { backgroundColor: 'rgba(255,255,255,0.25)', paddingVertical: 3, paddingHorizontal: 8, borderRadius: 8, marginLeft: 8 },
+  optionCostText: { fontSize: 11, color: '#FFFFFF', fontWeight: '700' },
+
+  /* 로딩 */
+  loadingBox: { alignItems: 'center', paddingVertical: 32 },
+  loadingText: { fontSize: 13, color: '#9B9BAA', marginTop: 12, fontWeight: '500' },
+
+  /* 다음 챕터 */
+  nextPanel: { marginTop: 4, marginBottom: 10 },
+  nextBtn: { borderRadius: 16, height: 52, alignItems: 'center', justifyContent: 'center' },
+  nextBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
+  lockedCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 18, padding: 22, alignItems: 'center',
+    borderWidth: 1.5, borderColor: '#E9ECEF', borderStyle: 'dashed',
+  },
+  lockedIcon: { fontSize: 28, marginBottom: 8 },
+  lockedTitle: { fontSize: 15, fontWeight: '800', color: '#6B6B80', marginBottom: 4 },
+  lockedDesc: { fontSize: 13, color: '#FF4D80', fontWeight: '600' },
 });

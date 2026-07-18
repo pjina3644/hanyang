@@ -3,11 +3,11 @@ import {
   StyleSheet, View, Text, TouchableOpacity,
   ScrollView, Alert, Image, Platform,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { checkPedometerAvailability, startStepCountSubscription, getStepCountRange } from '../services/pedometer';
 import { getUserStats, updateUserStats, getAppSettings } from '../services/firebase';
 import { sendRandomWarningSMS } from '../services/smsAlert';
 
-// 캐릭터 레벨별 일러스트 (static require 필수)
 const CHAR_IMAGES = [
   require('../assets/char_level0.png'),
   require('../assets/char_level1.png'),
@@ -15,72 +15,67 @@ const CHAR_IMAGES = [
   require('../assets/char_level3.png'),
 ];
 
-function getCharacterInfo(dailyGoalAchievements, nickname) {
+function getCharacterInfo(days, nickname) {
   const n = nickname || '핑키';
-  if (dailyGoalAchievements >= 100) {
-    return { level: 3, name: `존예${n}`, desc: '완벽한 몸과 빛나는 아우라 — 이제 신의 경지', nextThreshold: null, progress: 1 };
-  }
-  if (dailyGoalAchievements >= 30) {
-    return { level: 2, name: `운동왕${n}`, desc: '근육이 터질 것 같은 운동 마니아', nextThreshold: 100, progress: (dailyGoalAchievements - 30) / 70 };
-  }
-  if (dailyGoalAchievements >= 10) {
-    return { level: 1, name: `인간${n}`, desc: '드디어 두 발로 걷기 시작한 진화형', nextThreshold: 30, progress: (dailyGoalAchievements - 10) / 20 };
-  }
-  return { level: 0, name: `돼지${n}`, desc: '침대와 과자가 전부였던 게으름의 상징', nextThreshold: 10, progress: dailyGoalAchievements / 10 };
+  if (days >= 100) return { level: 3, name: `존예${n}`,   desc: '완벽한 몸과 빛나는 아우라 — 이제 신의 경지',       nextThreshold: null, progress: 1 };
+  if (days >= 30)  return { level: 2, name: `운동왕${n}`, desc: '근육이 터질 것 같은 운동 마니아',                   nextThreshold: 100,  progress: (days - 30) / 70 };
+  if (days >= 10)  return { level: 1, name: `인간${n}`,   desc: '드디어 두 발로 걷기 시작한 진화형',               nextThreshold: 30,   progress: (days - 10) / 20 };
+  return             { level: 0, name: `돼지${n}`,   desc: '침대와 과자가 전부였던 게으름의 상징',           nextThreshold: 10,   progress: days / 10 };
 }
 
+const LEVEL_COLORS = [
+  ['#FFCDD2', '#FF8787'],
+  ['#BBDEFB', '#42A5F5'],
+  ['#C8E6C9', '#43A047'],
+  ['#F3E5F5', '#AB47BC'],
+];
+
 export default function HomeScreen() {
-  const [steps, setSteps] = useState(0);
-  const [accumulatedSteps, setAccumulatedSteps] = useState(0);
-  const [targetSteps, setTargetSteps] = useState(10000);
-  const [points, setPoints] = useState(100);
-  const [nickname, setNickname] = useState('핑키');
+  const [steps, setSteps]                           = useState(0);
+  const [accumulatedSteps, setAccumulatedSteps]     = useState(0);
+  const [targetSteps, setTargetSteps]               = useState(10000);
+  const [points, setPoints]                         = useState(100);
+  const [nickname, setNickname]                     = useState('핑키');
   const [dailyGoalAchievements, setDailyGoalAchievements] = useState(0);
-  const [todayGoalAchieved, setTodayGoalAchieved] = useState(false);
-  const [contacts, setContacts] = useState([]);
+  const [todayGoalAchieved, setTodayGoalAchieved]   = useState(false);
+  const [contacts, setContacts]                     = useState([]);
   const [isPedometerAvailable, setIsPedometerAvailable] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading]                   = useState(true);
 
-  // 실수 방지용 refs
-  const baseStepsRef = useRef(0);       // 구독 시작 시점 건강 앱 걸음수
-  const lastTotalRef = useRef(0);        // 마지막 총 걸음수 (델타 계산용)
-  const pedometerSub = useRef(null);
+  const baseStepsRef      = useRef(0);
+  const lastTotalRef      = useRef(0);
+  const pedometerSub      = useRef(null);
   const goalAlertShownRef = useRef(false);
-  const accRef = useRef(0);             // accumulated 최신값 (closure 방지)
-  const pointsRef = useRef(100);
+  const accRef            = useRef(0);
+  const pointsRef         = useRef(100);
 
-  // --- 초기화 ---
   useEffect(() => {
     let mounted = true;
-
     const init = async () => {
-      // 1. Firebase / Mock에서 저장값 로드
       const [stats, settings] = await Promise.all([getUserStats(), getAppSettings()]);
-
       if (!mounted) return;
 
-      const savedNickname = settings.nickname || '핑키';
-      const savedTarget = settings.targetSteps || 10000;
-      const savedContacts = settings.warningContacts || [];
-      const savedPoints = stats.points || 100;
-      const savedAchievements = stats.dailyGoalAchievements || 0;
-      const savedAcc = stats.accumulatedSteps || 0;
+      const savedNickname  = settings.nickname       || '핑키';
+      const savedTarget    = settings.targetSteps    || 10000;
+      const savedContacts  = settings.warningContacts || [];
+      const savedPoints    = stats.points            || 100;
+      const savedAchieve   = stats.dailyGoalAchievements || 0;
+      const savedAcc       = stats.accumulatedSteps  || 0;
 
       setNickname(savedNickname);
       setTargetSteps(savedTarget);
       setContacts(savedContacts);
       setPoints(savedPoints);
-      setDailyGoalAchievements(savedAchievements);
+      setDailyGoalAchievements(savedAchieve);
       pointsRef.current = savedPoints;
-      accRef.current = savedAcc;
+      accRef.current    = savedAcc;
 
-      // 2. 자정 리셋 처리
       const today = new Date().toDateString();
-      let todaySteps = stats.todaySteps || 0;
+      let todaySteps   = stats.todaySteps       || 0;
       let todayAchieved = stats.todayGoalAchieved || false;
 
       if ((stats.lastResetDate || '') !== today) {
-        todaySteps = 0;
+        todaySteps    = 0;
         todayAchieved = false;
         goalAlertShownRef.current = false;
         await updateUserStats({ todaySteps: 0, todayGoalAchieved: false, lastResetDate: today });
@@ -90,35 +85,27 @@ export default function HomeScreen() {
       setAccumulatedSteps(savedAcc);
       if (todayAchieved) goalAlertShownRef.current = true;
 
-      // 3. 만보기 권한 확인 & 실제 데이터 로드
       const available = await checkPedometerAvailability();
       if (!mounted) return;
       setIsPedometerAvailable(available);
 
       if (available) {
-        // iOS HealthKit / Android 기록에서 오늘 자정부터 지금까지 걸음수 가져오기
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
+        const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
         const healthSteps = await getStepCountRange(startOfDay, new Date());
         if (!mounted) return;
 
         baseStepsRef.current = healthSteps;
         lastTotalRef.current = healthSteps;
-
-        // 저장값과 차이가 있으면 accumulated 보정
-        const delta = healthSteps - todaySteps;
+        const delta  = healthSteps - todaySteps;
         const newAcc = Math.max(0, savedAcc + delta);
         accRef.current = newAcc;
         setSteps(healthSteps);
         setAccumulatedSteps(newAcc);
-        if (delta !== 0) {
-          await updateUserStats({ todaySteps: healthSteps, accumulatedSteps: newAcc });
-        }
+        if (delta !== 0) await updateUserStats({ todaySteps: healthSteps, accumulatedSteps: newAcc });
 
-        // 실시간 구독 시작 (watchStepCount는 구독 이후 누적 걸음 전달)
         pedometerSub.current = startStepCountSubscription((stepsFromSub) => {
           const total = baseStepsRef.current + stepsFromSub;
-          const d = total - lastTotalRef.current;
+          const d     = total - lastTotalRef.current;
           if (d > 0) {
             lastTotalRef.current = total;
             const newAcc2 = accRef.current + d;
@@ -129,7 +116,6 @@ export default function HomeScreen() {
           }
         });
       } else {
-        // 웹/시뮬레이터: 저장된 값 사용
         setSteps(todaySteps);
         lastTotalRef.current = todaySteps;
         setAccumulatedSteps(savedAcc);
@@ -145,203 +131,190 @@ export default function HomeScreen() {
     };
   }, []);
 
-  // --- 만보 달성 자동 감지 ---
   useEffect(() => {
-    if (
-      !goalAlertShownRef.current &&
-      isPedometerAvailable &&
-      !todayGoalAchieved &&
-      steps >= targetSteps &&
-      !isLoading
-    ) {
+    if (!goalAlertShownRef.current && isPedometerAvailable && !todayGoalAchieved && steps >= targetSteps && !isLoading) {
       goalAlertShownRef.current = true;
-      Alert.alert(
-        '🎉 만보 달성!',
-        `${targetSteps.toLocaleString()}보를 달성했습니다!\n달성 기록을 남길까요?`,
-        [
-          { text: '나중에', style: 'cancel' },
-          { text: '✅ 기록하기', onPress: handleDailyGoalAchieved },
-        ]
-      );
+      Alert.alert('🎉 만보 달성!', `${targetSteps.toLocaleString()}보 달성!\n달성 기록을 남길까요?`, [
+        { text: '나중에', style: 'cancel' },
+        { text: '✅ 기록하기', onPress: handleDailyGoalAchieved },
+      ]);
     }
   }, [steps, targetSteps, isPedometerAvailable, todayGoalAchieved, isLoading]);
 
-  // --- 만보 달성 기록 (하루 1회) ---
   const handleDailyGoalAchieved = useCallback(async () => {
-    if (todayGoalAchieved) {
-      Alert.alert('이미 달성!', '오늘 만보 달성은 이미 기록됐습니다. 내일 또 도전하세요!');
-      return;
-    }
-    const nextDays = dailyGoalAchievements + 1;
+    if (todayGoalAchieved) { Alert.alert('이미 달성!', '내일 또 도전하세요!'); return; }
+    const nextDays   = dailyGoalAchievements + 1;
     const nextPoints = pointsRef.current + 100;
     pointsRef.current = nextPoints;
-
     const prevChar = getCharacterInfo(dailyGoalAchievements, nickname);
     const nextChar = getCharacterInfo(nextDays, nickname);
-
     setDailyGoalAchievements(nextDays);
     setTodayGoalAchieved(true);
     setPoints(nextPoints);
     await updateUserStats({ dailyGoalAchievements: nextDays, todayGoalAchieved: true, points: nextPoints });
-
-    if (nextChar.level > prevChar.level) {
+    if (nextChar.level > prevChar.level)
       Alert.alert('🚀 레벨업!', `'${prevChar.name}' → '${nextChar.name}'\n으로 진화했습니다!`);
-    } else {
+    else
       Alert.alert('✅ 만보 달성!', `누적 달성일: ${nextDays}일 (+100P)`);
-    }
   }, [dailyGoalAchievements, todayGoalAchieved, nickname]);
 
-  // --- 시뮬레이터용 수동 걸음 추가 ---
   const handleAddManualSteps = async (amount) => {
     const nextSteps = steps + amount;
-    const prevMilestone = Math.floor(accumulatedSteps / 1000);
-    const nextAcc = accumulatedSteps + amount;
-    const nextMilestone = Math.floor(nextAcc / 1000);
-
+    const prevMile  = Math.floor(accumulatedSteps / 1000);
+    const nextAcc   = accumulatedSteps + amount;
+    const nextMile  = Math.floor(nextAcc / 1000);
     let bonus = 0;
-    if (nextMilestone > prevMilestone) {
-      bonus = (nextMilestone - prevMilestone) * 50;
-      Alert.alert('🎉 걸음 마일스톤!', `${nextMilestone * 1000}보 돌파! +${bonus}P`);
+    if (nextMile > prevMile) {
+      bonus = (nextMile - prevMile) * 50;
+      Alert.alert('🎉 마일스톤!', `${nextMile * 1000}보 돌파! +${bonus}P`);
     }
     const nextPoints = points + bonus;
     accRef.current = nextAcc;
     lastTotalRef.current = nextSteps;
-    setSteps(nextSteps);
-    setAccumulatedSteps(nextAcc);
-    setPoints(nextPoints);
-    pointsRef.current = nextPoints;
+    setSteps(nextSteps); setAccumulatedSteps(nextAcc); setPoints(nextPoints); pointsRef.current = nextPoints;
     await updateUserStats({ todaySteps: nextSteps, accumulatedSteps: nextAcc, points: nextPoints });
   };
 
-  // --- 경고 문자 발송 ---
   const handleWarningSMS = async () => {
-    if (steps >= targetSteps) {
-      Alert.alert('🏆 목표 달성!', `오늘 ${targetSteps.toLocaleString()}보를 이미 달성했어요!`);
-      return;
-    }
-    if (contacts.length === 0) {
-      Alert.alert('연락처 없음', '설정 탭에서 경고 연락처를 먼저 등록해주세요.');
-      return;
-    }
-    Alert.alert(
-      '🚨 경고 문자 발송',
-      `오늘 ${steps.toLocaleString()}보 달성 (목표 ${targetSteps.toLocaleString()}보).\n연락처 중 1명에게 경고 문자를 보냅니다.`,
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '문자 보내기',
-          onPress: async () => {
-            // contacts는 {name, phone} 객체 배열 → 전화번호만 추출
-            const phoneNumbers = contacts.map(c => (typeof c === 'string' ? c : c.phone));
-            const success = await sendRandomWarningSMS(phoneNumbers);
-            if (success) {
-              const penalty = Math.max(0, pointsRef.current - 20);
-              pointsRef.current = penalty;
-              setPoints(penalty);
-              await updateUserStats({ points: penalty });
-            }
-          },
-        },
-      ]
+    if (steps >= targetSteps) { Alert.alert('🏆 이미 달성!', '오늘 목표를 달성했어요!'); return; }
+    if (contacts.length === 0) { Alert.alert('연락처 없음', '설정 탭에서 경고 연락처를 등록해주세요.'); return; }
+    Alert.alert('🚨 경고 문자 발송', `오늘 ${steps.toLocaleString()}보 / 목표 ${targetSteps.toLocaleString()}보\n연락처 1명에게 경고 문자를 보냅니다.`,
+      [{ text: '취소', style: 'cancel' }, {
+        text: '보내기', onPress: async () => {
+          const phones = contacts.map(c => typeof c === 'string' ? c : c.phone).filter(Boolean);
+          const ok = await sendRandomWarningSMS(phones);
+          if (ok) {
+            const p = Math.max(0, pointsRef.current - 20);
+            pointsRef.current = p; setPoints(p);
+            await updateUserStats({ points: p });
+          }
+        }
+      }]
     );
   };
 
-  const charInfo = getCharacterInfo(dailyGoalAchievements, nickname);
+  const charInfo   = getCharacterInfo(dailyGoalAchievements, nickname);
+  const todayPct   = Math.min(100, Math.floor((steps / targetSteps) * 100));
   const progressPct = Math.min(100, charInfo.progress * 100);
-  const todayPct = Math.min(100, (steps / targetSteps) * 100);
+  const achieved   = steps >= targetSteps;
+  const ringColor  = achieved ? '#22C55E' : '#FF4D80';
+  const lvlColors  = LEVEL_COLORS[charInfo.level];
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
-      {/* 헤더 */}
-      <View style={styles.header}>
+    <ScrollView style={styles.scroll} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+
+      {/* ─── 헤더 ─── */}
+      <LinearGradient colors={['#FF4D80', '#FF8FB1']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.header}>
         <Text style={styles.logo}>🏃 핑키 피트니스</Text>
         <View style={styles.pointBadge}>
           <Text style={styles.pointText}>⚡ {points} P</Text>
         </View>
-      </View>
+      </LinearGradient>
 
-      {/* 오늘 걸음수 서클 */}
-      <View style={styles.stepCircleWrap}>
-        <View style={[styles.stepCircle, steps >= targetSteps && styles.stepCircleAchieved]}>
-          <Text style={styles.stepNum}>{steps.toLocaleString()}</Text>
-          <Text style={styles.stepGoal}>/ {targetSteps.toLocaleString()} 걸음</Text>
-          {steps >= targetSteps && <Text style={styles.stepAchievedBadge}>🎉 달성!</Text>}
+      {/* ─── 걸음수 링 ─── */}
+      <View style={styles.ringSection}>
+        <View style={[styles.ringOuter, { borderColor: ringColor, shadowColor: ringColor }]}>
+          <Text style={[styles.ringNum, achieved && styles.ringNumGreen]}>{steps.toLocaleString()}</Text>
+          <Text style={styles.ringGoal}>/ {targetSteps.toLocaleString()} 걸음</Text>
+          <Text style={[styles.ringPct, achieved ? styles.ringPctGreen : styles.ringPctPink]}>
+            {achieved ? '🎉 달성!' : `${todayPct}%`}
+          </Text>
         </View>
-        {/* 진행 바 */}
-        <View style={styles.todayProgressBg}>
-          <View style={[styles.todayProgressFill, { width: `${todayPct}%` }, steps >= targetSteps && styles.todayProgressDone]} />
+
+        {/* 선형 진행 바 */}
+        <View style={styles.barBg}>
+          <LinearGradient
+            colors={achieved ? ['#22C55E', '#16A34A'] : ['#FF4D80', '#FF8FB1']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={[styles.barFill, { width: `${todayPct}%` }]}
+          />
         </View>
-        <Text style={styles.sensorStatus}>
-          {isPedometerAvailable ? '🟢 만보기 실시간 측정 중' : '🟡 시뮬레이터 모드 (웹/에뮬레이터)'}
+
+        <Text style={styles.sensorBadge}>
+          {isPedometerAvailable ? '🟢 만보기 실시간 측정 중' : '🟡 시뮬레이터 모드'}
         </Text>
       </View>
 
-      {/* 캐릭터 카드 */}
+      {/* ─── 캐릭터 카드 ─── */}
       <View style={styles.charCard}>
+        {/* 레벨 배지 */}
+        <LinearGradient colors={[lvlColors[0], lvlColors[1]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.levelBadge}>
+          <Text style={styles.levelBadgeText}>Lv.{charInfo.level} · 만보 달성 {dailyGoalAchievements}일</Text>
+        </LinearGradient>
+
         <Image source={CHAR_IMAGES[charInfo.level]} style={styles.charImage} resizeMode="contain" />
         <Text style={styles.charName}>{charInfo.name}</Text>
         <Text style={styles.charDesc}>{charInfo.desc}</Text>
 
-        <View style={styles.achieveRow}>
-          <Text style={styles.achieveLabel}>만보 달성일</Text>
-          <Text style={styles.achieveCount}>{dailyGoalAchievements}일</Text>
-        </View>
-
+        {/* XP 바 */}
         {charInfo.nextThreshold ? (
-          <View style={styles.progressWrap}>
-            <View style={styles.progressBg}>
-              <View style={[styles.progressFill, { width: `${progressPct}%` }]} />
+          <View style={styles.xpWrap}>
+            <View style={styles.xpBg}>
+              <LinearGradient
+                colors={[lvlColors[0], lvlColors[1]]}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={[styles.xpFill, { width: `${progressPct}%` }]}
+              />
             </View>
-            <View style={styles.progressLabels}>
-              <Text style={styles.progressLabel}>현재 {dailyGoalAchievements}일</Text>
-              <Text style={styles.progressLabel}>다음 레벨 {charInfo.nextThreshold}일</Text>
+            <View style={styles.xpLabels}>
+              <Text style={styles.xpLabel}>{dailyGoalAchievements}일</Text>
+              <Text style={styles.xpLabel}>→ {charInfo.nextThreshold}일</Text>
             </View>
           </View>
         ) : (
-          <Text style={styles.maxLevelText}>✨ 최고 레벨 달성! ✨</Text>
+          <View style={styles.maxTag}><Text style={styles.maxTagText}>✨ MAX LEVEL ✨</Text></View>
         )}
       </View>
 
-      {/* 액션 패널 */}
-      <View style={styles.panel}>
-
-        {/* 실제 만보기 사용 중일 때: 만보 달성 버튼 + 경고 문자 */}
+      {/* ─── 액션 버튼 ─── */}
+      <View style={styles.actions}>
         {isPedometerAvailable ? (
           <>
-            <TouchableOpacity
-              style={[styles.btn, styles.greenBtn, todayGoalAchieved && styles.disabledBtn]}
-              onPress={handleDailyGoalAchieved}
-            >
-              <Text style={styles.btnText}>
-                {todayGoalAchieved ? '✅ 오늘 만보 달성 완료' : '🏅 만보 달성 기록하기 (+100P)'}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.btn, styles.redBtn]} onPress={handleWarningSMS}>
-              <Text style={styles.btnText}>🚨 목표 미달성 경고 문자 보내기</Text>
+            {todayGoalAchieved ? (
+              <View style={[styles.btn, styles.btnDone]}>
+                <Text style={styles.btnText}>✅ 오늘 만보 달성 완료</Text>
+              </View>
+            ) : (
+              <TouchableOpacity onPress={handleDailyGoalAchieved} activeOpacity={0.85}>
+                <LinearGradient colors={['#22C55E', '#16A34A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.btn}>
+                  <Text style={styles.btnText}>🏅 만보 달성 기록하기  +100P</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={handleWarningSMS} activeOpacity={0.85} style={{ marginTop: 10 }}>
+              <LinearGradient colors={['#EF4444', '#DC2626']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.btn}>
+                <Text style={styles.btnText}>🚨 목표 미달성 경고 문자</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </>
         ) : (
-          /* 시뮬레이터/웹 모드: 수동 컨트롤 */
           <>
-            <Text style={styles.panelTitle}>⚡ 시뮬레이터 컨트롤 (웹 전용)</Text>
-            <View style={styles.btnRow}>
-              <TouchableOpacity style={[styles.btn, styles.blueBtn]} onPress={() => handleAddManualSteps(500)}>
-                <Text style={styles.btnText}>+500보</Text>
+            <Text style={styles.simLabel}>⚡ 시뮬레이터 컨트롤</Text>
+            <View style={styles.simRow}>
+              <TouchableOpacity onPress={() => handleAddManualSteps(500)} activeOpacity={0.85} style={{ flex: 1 }}>
+                <LinearGradient colors={['#60A5FA', '#3B82F6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.simBtn}>
+                  <Text style={styles.btnText}>+500보</Text>
+                </LinearGradient>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.btn, styles.blueBtn]} onPress={() => handleAddManualSteps(3000)}>
-                <Text style={styles.btnText}>+3,000보</Text>
+              <TouchableOpacity onPress={() => handleAddManualSteps(3000)} activeOpacity={0.85} style={{ flex: 1 }}>
+                <LinearGradient colors={['#60A5FA', '#3B82F6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.simBtn}>
+                  <Text style={styles.btnText}>+3,000보</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={[styles.btn, styles.greenBtn, todayGoalAchieved && styles.disabledBtn]}
-              onPress={handleDailyGoalAchieved}
-            >
-              <Text style={styles.btnText}>
-                {todayGoalAchieved ? '✅ 오늘 만보 달성 완료' : '🏅 오늘 만보 달성! (+100P)'}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.btn, styles.redBtn]} onPress={handleWarningSMS}>
-              <Text style={styles.btnText}>🚨 경고 문자 시뮬레이션</Text>
+            {todayGoalAchieved ? (
+              <View style={[styles.btn, styles.btnDone]}><Text style={styles.btnText}>✅ 오늘 만보 달성 완료</Text></View>
+            ) : (
+              <TouchableOpacity onPress={handleDailyGoalAchieved} activeOpacity={0.85}>
+                <LinearGradient colors={['#22C55E', '#16A34A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.btn}>
+                  <Text style={styles.btnText}>🏅 만보 달성!  +100P</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={handleWarningSMS} activeOpacity={0.85} style={{ marginTop: 10 }}>
+              <LinearGradient colors={['#EF4444', '#DC2626']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.btn}>
+                <Text style={styles.btnText}>🚨 경고 문자 시뮬레이션</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </>
         )}
@@ -351,68 +324,63 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: '#F8F9FA' },
-  container: { padding: 20, alignItems: 'center', paddingBottom: 40 },
+  scroll: { flex: 1, backgroundColor: '#FFF5F7' },
+  container: { paddingBottom: 40 },
+
+  /* 헤더 */
   header: {
-    flexDirection: 'row', width: '100%',
-    justifyContent: 'space-between', alignItems: 'center',
-    marginBottom: 20, marginTop: 10,
-  },
-  logo: { fontSize: 20, fontWeight: 'bold', color: '#343A40' },
-  pointBadge: { backgroundColor: '#FFE3E3', paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20 },
-  pointText: { color: '#FF6B6B', fontWeight: 'bold', fontSize: 14 },
-
-  stepCircleWrap: { alignItems: 'center', marginBottom: 24, width: '100%' },
-  stepCircle: {
-    width: 200, height: 200, borderRadius: 100,
-    backgroundColor: '#FFFFFF', borderWidth: 8, borderColor: '#FF8787',
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
-    elevation: 4, marginBottom: 14,
-  },
-  stepCircleAchieved: { borderColor: '#51CF66' },
-  stepNum: { fontSize: 36, fontWeight: 'bold', color: '#212529' },
-  stepGoal: { fontSize: 13, color: '#868E96', marginTop: 4 },
-  stepAchievedBadge: { fontSize: 13, color: '#37B24D', fontWeight: 'bold', marginTop: 4 },
-  todayProgressBg: { width: '80%', height: 8, backgroundColor: '#F1F3F5', borderRadius: 4, overflow: 'hidden', marginBottom: 8 },
-  todayProgressFill: { height: '100%', backgroundColor: '#FF8787', borderRadius: 4 },
-  todayProgressDone: { backgroundColor: '#51CF66' },
-  sensorStatus: { fontSize: 12, color: '#868E96' },
-
-  charCard: {
-    width: '100%', backgroundColor: '#FFFFFF',
-    borderRadius: 20, padding: 24, alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
-  },
-  charImage: { width: 160, height: 160, marginBottom: 12 },
-  charName: { fontSize: 22, fontWeight: 'bold', color: '#343A40', marginBottom: 4 },
-  charDesc: { fontSize: 13, color: '#868E96', textAlign: 'center', marginBottom: 16, lineHeight: 20 },
-  achieveRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    width: '100%', backgroundColor: '#FFF5F5', borderRadius: 10,
-    paddingVertical: 10, paddingHorizontal: 16, marginBottom: 14,
+    paddingHorizontal: 20, paddingVertical: 16,
   },
-  achieveLabel: { fontSize: 13, color: '#868E96', fontWeight: '600' },
-  achieveCount: { fontSize: 18, fontWeight: 'bold', color: '#FF6B6B' },
-  progressWrap: { width: '100%' },
-  progressBg: { width: '100%', height: 10, backgroundColor: '#F1F3F5', borderRadius: 5, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: '#FF8787', borderRadius: 5 },
-  progressLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  progressLabel: { fontSize: 11, color: '#868E96' },
-  maxLevelText: { fontSize: 15, fontWeight: 'bold', color: '#FF8787', marginTop: 4 },
+  logo: { fontSize: 18, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.3 },
+  pointBadge: { backgroundColor: 'rgba(255,255,255,0.25)', paddingVertical: 5, paddingHorizontal: 12, borderRadius: 16 },
+  pointText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
 
-  panel: { width: '100%', backgroundColor: '#F1F3F5', borderRadius: 16, padding: 16, alignItems: 'center' },
-  panelTitle: { fontSize: 14, fontWeight: 'bold', color: '#495057', marginBottom: 12 },
-  btnRow: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 10, gap: 10 },
-  btn: {
-    borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-    height: 46, paddingHorizontal: 12, width: '100%', marginBottom: 10,
+  /* 링 섹션 */
+  ringSection: { alignItems: 'center', paddingTop: 28, paddingBottom: 24, paddingHorizontal: 20 },
+  ringOuter: {
+    width: 210, height: 210, borderRadius: 105,
+    borderWidth: 14, backgroundColor: '#FFFFFF',
+    alignItems: 'center', justifyContent: 'center',
+    shadowOpacity: 0.30, shadowRadius: 22, shadowOffset: { width: 0, height: 0 },
+    elevation: 12, marginBottom: 18,
   },
-  blueBtn: { flex: 1, width: undefined, marginBottom: 0, backgroundColor: '#4DABF7' },
-  greenBtn: { backgroundColor: '#51CF66' },
-  redBtn: { backgroundColor: '#FA5252', marginBottom: 0 },
-  disabledBtn: { backgroundColor: '#ADB5BD' },
-  btnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 14, textAlign: 'center' },
+  ringNum:      { fontSize: 42, fontWeight: '900', color: '#1C1C28', letterSpacing: -1 },
+  ringNumGreen: { color: '#16A34A' },
+  ringGoal:     { fontSize: 12, color: '#B0B0BC', marginTop: 2 },
+  ringPct:      { fontSize: 15, fontWeight: '700', marginTop: 6 },
+  ringPctPink:  { color: '#FF4D80' },
+  ringPctGreen: { color: '#16A34A' },
+  barBg: { width: '78%', height: 8, backgroundColor: '#FFE4EC', borderRadius: 4, overflow: 'hidden', marginBottom: 10 },
+  barFill: { height: '100%', borderRadius: 4 },
+  sensorBadge: { fontSize: 11, color: '#9B9BAA', fontWeight: '500' },
+
+  /* 캐릭터 카드 */
+  charCard: {
+    marginHorizontal: 16, backgroundColor: '#FFFFFF', borderRadius: 24,
+    alignItems: 'center', overflow: 'hidden', marginBottom: 16,
+    shadowColor: '#FF4D80', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  levelBadge: { width: '100%', paddingVertical: 8, alignItems: 'center' },
+  levelBadgeText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.3 },
+  charImage: { width: 150, height: 150, marginTop: 16 },
+  charName: { fontSize: 24, fontWeight: '900', color: '#1C1C28', marginTop: 10, letterSpacing: -0.5 },
+  charDesc: { fontSize: 13, color: '#9B9BAA', textAlign: 'center', marginTop: 4, marginBottom: 18, lineHeight: 19, paddingHorizontal: 24 },
+  xpWrap: { width: '100%', paddingHorizontal: 24, paddingBottom: 20 },
+  xpBg: { width: '100%', height: 10, backgroundColor: '#F3F3F6', borderRadius: 5, overflow: 'hidden' },
+  xpFill: { height: '100%', borderRadius: 5 },
+  xpLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
+  xpLabel: { fontSize: 11, color: '#B0B0BC', fontWeight: '600' },
+  maxTag: { marginBottom: 20, backgroundColor: '#FFF0F3', paddingVertical: 6, paddingHorizontal: 20, borderRadius: 12 },
+  maxTagText: { fontSize: 13, fontWeight: '700', color: '#FF4D80' },
+
+  /* 액션 */
+  actions: { marginHorizontal: 16, marginBottom: 8 },
+  btn: { borderRadius: 16, height: 52, alignItems: 'center', justifyContent: 'center', width: '100%' },
+  btnDone: { backgroundColor: '#D1FAE5', marginBottom: 0 },
+  btnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15, letterSpacing: 0.2 },
+  simLabel: { fontSize: 12, fontWeight: '700', color: '#B0B0BC', textAlign: 'center', marginBottom: 10 },
+  simRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  simBtn: { borderRadius: 14, height: 46, alignItems: 'center', justifyContent: 'center' },
 });

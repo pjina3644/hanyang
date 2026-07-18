@@ -1,85 +1,104 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, Platform } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Platform, SafeAreaView } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import HomeScreen from './screens/HomeScreen';
 import StoryScreen from './screens/StoryScreen';
 import SettingsScreen from './screens/SettingsScreen';
+
+const TABS = [
+  { id: 'Home',     icon: '🐷', label: '홈' },
+  { id: 'Story',    icon: '📖', label: '스토리' },
+  { id: 'Settings', icon: '⚙️', label: '설정' },
+];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('Home');
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.root}>
       <View style={styles.content}>
-        {activeTab === 'Home' && <HomeScreen />}
-        {activeTab === 'Story' && <StoryScreen />}
+        {activeTab === 'Home'     && <HomeScreen />}
+        {activeTab === 'Story'    && <StoryScreen />}
         {activeTab === 'Settings' && <SettingsScreen />}
       </View>
 
-      {/* 커스텀 하단 탭 바 (추가 라이브러리 설치 오류를 막기 위해 순수 컴포넌트로 구현) */}
       <View style={styles.tabBar}>
-        <TouchableOpacity 
-          style={[styles.tabItem, activeTab === 'Home' && styles.activeTabItem]} 
-          onPress={() => setActiveTab('Home')}
-        >
-          <Text style={[styles.tabText, activeTab === 'Home' && styles.activeTabText]}>🐷 홈</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tabItem, activeTab === 'Story' && styles.activeTabItem]} 
-          onPress={() => setActiveTab('Story')}
-        >
-          <Text style={[styles.tabText, activeTab === 'Story' && styles.activeTabText]}>📖 스토리</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tabItem, activeTab === 'Settings' && styles.activeTabItem]} 
-          onPress={() => setActiveTab('Settings')}
-        >
-          <Text style={[styles.tabText, activeTab === 'Settings' && styles.activeTabText]}>⚙️ 설정</Text>
-        </TouchableOpacity>
+        {TABS.map(tab => {
+          const active = activeTab === tab.id;
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              style={styles.tabItem}
+              onPress={() => setActiveTab(tab.id)}
+              activeOpacity={0.75}
+            >
+              {active ? (
+                <LinearGradient
+                  colors={['#FF4D80', '#FF8FB1']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.pill}
+                >
+                  <Text style={styles.pillIcon}>{tab.icon}</Text>
+                  <Text style={styles.pillLabelActive}>{tab.label}</Text>
+                </LinearGradient>
+              ) : (
+                <View style={styles.pillInactive}>
+                  <Text style={styles.pillIcon}>{tab.icon}</Text>
+                  <Text style={styles.pillLabel}>{tab.label}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FFF5F7',
     paddingTop: Platform.OS === 'android' ? 40 : 0,
   },
-  content: {
-    flex: 1,
-  },
+  content: { flex: 1 },
+
   tabBar: {
     flexDirection: 'row',
-    height: 65,
+    height: 68,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#E9ECEF',
+    borderTopColor: '#FFE4EC',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: -2 },
+    paddingHorizontal: 10,
+    shadowColor: '#FF4D80',
+    shadowOpacity: 0.10,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: -3 },
+    elevation: 12,
   },
   tabItem: {
     flex: 1,
-    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  activeTabItem: {
-    borderTopWidth: 3,
-    borderTopColor: '#FF8787',
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 22,
+    gap: 5,
   },
-  tabText: {
-    fontSize: 14,
-    color: '#868E96',
-    fontWeight: '500',
+  pillInactive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    gap: 5,
   },
-  activeTabText: {
-    color: '#FF8787',
-    fontWeight: 'bold',
-  },
+  pillIcon: { fontSize: 15 },
+  pillLabelActive: { fontSize: 13, color: '#FFFFFF', fontWeight: '700' },
+  pillLabel: { fontSize: 13, color: '#C0C0D0', fontWeight: '500' },
 });

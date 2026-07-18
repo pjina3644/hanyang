@@ -11,6 +11,7 @@
     "@expo/ngrok": "^4.1.0",
     "expo": "~54.0.0",
     "expo-contacts": "~15.0.11",
+    "expo-linear-gradient": "~15.0.8",
     "expo-sensors": "~15.0.8",
     "expo-sms": "~14.0.8",
     "firebase": "^10.7.0",
