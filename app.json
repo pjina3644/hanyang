@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "핑키 피트니스",
-    "slug": "pinky-fitness",
+    "name": "Prototype",
+    "slug": "prototype",
     "version": "1.0.0",
     "orientation": "portrait",
     "platforms": ["ios", "android", "web"],

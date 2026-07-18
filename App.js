@@ -34,7 +34,7 @@ export default function App() {
             >
               {active ? (
                 <LinearGradient
-                  colors={['#FF4D80', '#FF8FB1']}
+                  colors={['#6366F1', '#8B5CF6']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.pill}
@@ -75,13 +75,13 @@ const styles = StyleSheet.create({
     borderRadius: 33,
     alignItems: 'center',
     paddingHorizontal: 8,
-    shadowColor: '#FF4D80',
-    shadowOpacity: 0.14,
+    shadowColor: '#6366F1',
+    shadowOpacity: 0.12,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
     elevation: 10,
     borderWidth: 1.5,
-    borderColor: '#FFEBF0',
+    borderColor: '#EEF2F6',
   },
   tabItem: {
     flex: 1,

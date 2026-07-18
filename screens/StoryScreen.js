@@ -16,6 +16,7 @@ export default function StoryScreen() {
   const [nickname, setNickname]                 = useState('핑키');
   const [isLoading, setIsLoading]               = useState(false);
   const [activeTheme, setActiveTheme]           = useState(null);
+  const [storyKeys, setStoryKeys]               = useState(0);
 
   const unlockedChapters    = Math.floor(accumulatedSteps / STEPS_PER_CHAPTER);
   const canWriteNextChapter = unlockedChapters > history.length;
@@ -32,6 +33,7 @@ export default function StoryScreen() {
       setPoints(stats.points || 0);
       setNickname(settings.nickname || '핑키');
       setHistory(hist);
+      setStoryKeys(stats.storyKeys || 0);
       if (hist.length > 0 && hist[0].themeId) {
         setActiveTheme(STORY_THEMES.find(t => t.id === hist[0].themeId) || getRandomTheme());
       } else {
@@ -40,6 +42,19 @@ export default function StoryScreen() {
     };
     load();
   }, []);
+
+  const handleUseStoryKey = async () => {
+    if (storyKeys <= 0) {
+      Alert.alert('열쇠 부족', '포인트 상점에서 [히든 스토리 열쇠]를 먼저 구매해 주세요!');
+      return;
+    }
+    const nextKeys = storyKeys - 1;
+    setStoryKeys(nextKeys);
+    await updateUserStats({ storyKeys: nextKeys });
+    
+    // 히든 스토리 진행
+    await handleUnlockNextStory('🔑 (히든) 상상도 못한 정체와 함께 숨겨진 조력자가 나타났다!', 0);
+  };
 
   const handleUnlockNextStory = async (selectedOptionText = '', cost = 0) => {
     if (!canWriteNextChapter && history.length > 0) {
@@ -185,6 +200,40 @@ export default function StoryScreen() {
               {index === history.length - 1 && story.options && !story.selectedOption && (
                 <View style={styles.optionsBox}>
                   <Text style={styles.optionHint}>행동을 선택하세요</Text>
+                  
+                  {/* 히든 선택지 */}
+                  {storyKeys > 0 ? (
+                    <TouchableOpacity
+                      onPress={handleUseStoryKey}
+                      activeOpacity={0.80}
+                      style={{ marginBottom: 12 }}
+                    >
+                      <LinearGradient
+                        colors={['#F97316', '#EA580C']}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                        style={[styles.optionBtn, { borderColor: '#FDBA74', borderWidth: 1 }]}
+                      >
+                        <Text style={styles.optionText}>🔑 [히든] 운명적인 반전 유도하기</Text>
+                        <View style={[styles.optionCostChip, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
+                          <Text style={styles.optionCostText}>열쇠 소모</Text>
+                        </View>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      onPress={() => Alert.alert('잠김', '포인트 상점에서 [히든 스토리 열쇠]를 구매하시면 히든 선택지를 사용할 수 있습니다!')}
+                      activeOpacity={0.80}
+                      style={{ marginBottom: 12, opacity: 0.7 }}
+                    >
+                      <View style={[styles.optionBtn, { backgroundColor: '#E2E8F0', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, height: 50, borderRadius: 14, alignItems: 'center' }]}>
+                        <Text style={[styles.optionText, { color: '#64748B' }]}>🔒 [히든] 열쇠로 히든 스토리 열기</Text>
+                        <View style={[styles.optionCostChip, { backgroundColor: '#CBD5E1' }]}>
+                          <Text style={[styles.optionCostText, { color: '#64748B' }]}>열쇠 필요</Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+
                   {story.options.map((opt, i) => (
                     <TouchableOpacity
                       key={i}
@@ -193,7 +242,7 @@ export default function StoryScreen() {
                       style={{ marginBottom: 8 }}
                     >
                       <LinearGradient
-                        colors={['#FF4D80', '#C2185B']}
+                        colors={['#6366F1', '#8B5CF6']}
                         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                         style={styles.optionBtn}
                       >

@@ -43,6 +43,8 @@ const mockDB = {
     lastResetDate: '',
     // 하루 벌칙 방지 실드 상태
     shieldActive: false,
+    // 스토리 전용 히든 엔딩 열쇠 개수
+    storyKeys: 0,
   },
   settings: {
     targetSteps: 10000,

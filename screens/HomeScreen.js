@@ -294,7 +294,7 @@ export default function HomeScreen() {
   const todayPct   = Math.min(100, Math.floor((steps / targetSteps) * 100));
   const progressPct = Math.min(100, charInfo.progress * 100);
   const achieved   = steps >= targetSteps;
-  const ringColor  = achieved ? '#22C55E' : '#FF4D80';
+  const ringColor  = achieved ? '#22C55E' : '#6366F1';
   const lvlColors  = LEVEL_COLORS[charInfo.level];
 
   return (
@@ -302,8 +302,8 @@ export default function HomeScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
         {/* ─── 헤더 ─── */}
-        <LinearGradient colors={['#FF4D80', '#FF8FB1']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.header}>
-          <Text style={styles.logo}>🏃 핑키 피트니스</Text>
+        <LinearGradient colors={['#6366F1', '#8B5CF6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.header}>
+          <Text style={styles.logo}>🏃 Prototype</Text>
           <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
             {shieldActive && (
               <View style={styles.shieldBadge}>
@@ -326,12 +326,12 @@ export default function HomeScreen() {
               </View>
             </View>
             <View style={{ flexDirection: 'row', gap: 14, marginTop: 12, alignItems: 'center' }}>
-              <View style={{ flex: 1, backgroundColor: '#FAFAFC', padding: 12, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: '#FFEBF0' }}>
-                <Text style={{ fontSize: 11, color: '#FF4D80', fontWeight: '800' }}>나 ({nickname})</Text>
+              <View style={{ flex: 1, backgroundColor: '#FAFAFC', padding: 12, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: '#EEF2F6' }}>
+                <Text style={{ fontSize: 11, color: '#6366F1', fontWeight: '800' }}>나 ({nickname})</Text>
                 <Text style={{ fontSize: 16, fontWeight: '900', color: '#1C1C28', marginTop: 4 }}>{steps.toLocaleString()}보</Text>
               </View>
               <Text style={{ fontSize: 16, color: '#DCDCE6', fontWeight: '900' }}>vs</Text>
-              <View style={{ flex: 1, backgroundColor: '#FAFAFC', padding: 12, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: '#FFEBF0' }}>
+              <View style={{ flex: 1, backgroundColor: '#FAFAFC', padding: 12, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: '#EEF2F6' }}>
                 <Text style={{ fontSize: 11, color: '#A78BFA', fontWeight: '800' }}>파트너 ({duoName})</Text>
                 <Text style={{ fontSize: 16, fontWeight: '900', color: '#1C1C28', marginTop: 4 }}>{duoSteps.toLocaleString()}보</Text>
               </View>
@@ -352,7 +352,7 @@ export default function HomeScreen() {
         {/* 선형 진행 바 */}
         <View style={styles.barBg}>
           <LinearGradient
-            colors={achieved ? ['#22C55E', '#16A34A'] : ['#FF4D80', '#FF8FB1']}
+            colors={achieved ? ['#22C55E', '#16A34A'] : ['#6366F1', '#8B5CF6']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             style={[styles.barFill, { width: `${todayPct}%` }]}
           />
@@ -469,9 +469,9 @@ export default function HomeScreen() {
           <Text style={{ fontSize: 13, color: '#8A8A9A', textAlign: 'center', lineHeight: 21, marginBottom: 24, fontWeight: '500' }}>
             비정상적인 흔들기가 감지되었습니다!{"\n"}
             신체 활동만 올바르게 인정됩니다.{"\n"}
-            <Text style={{ color: '#FF4D80', fontWeight: '800' }}>걸음수 카운트가 5초간 동결됩니다.</Text>
+            <Text style={{ color: '#6366F1', fontWeight: '800' }}>걸음수 카운트가 5초간 동결됩니다.</Text>
           </Text>
-          <TouchableOpacity onPress={() => setCheatAlertVisible(false)} style={{ backgroundColor: '#FF4D80', width: '100%', height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
+          <TouchableOpacity onPress={() => setCheatAlertVisible(false)} style={{ backgroundColor: '#6366F1', width: '100%', height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>반성하고 다시 걷기</Text>
           </TouchableOpacity>
         </View>
@@ -505,28 +505,28 @@ const styles = StyleSheet.create({
     paddingTop: 28,
     paddingBottom: 24,
     paddingHorizontal: 20,
-    shadowColor: '#FF4D80',
-    shadowOpacity: 0.05,
+    shadowColor: '#6366F1',
+    shadowOpacity: 0.04,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
     elevation: 4,
     borderWidth: 1.5,
-    borderColor: '#FFF0F3',
+    borderColor: '#EEF2F6',
   },
   ringOuter: {
     width: 200, height: 200, borderRadius: 100,
     borderWidth: 12, backgroundColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#FF4D80', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#6366F1', shadowOpacity: 0.10, shadowRadius: 18, shadowOffset: { width: 0, height: 4 },
     elevation: 8, marginBottom: 18,
   },
   ringNum:      { fontSize: 44, fontWeight: '900', color: '#1C1C28', letterSpacing: -1 },
   ringNumGreen: { color: '#16A34A' },
   ringGoal:     { fontSize: 12, color: '#A0A0B0', marginTop: 2, fontWeight: '500' },
   ringPct:      { fontSize: 15, fontWeight: '800', marginTop: 6 },
-  ringPctPink:  { color: '#FF4D80' },
+  ringPctPink:  { color: '#6366F1' },
   ringPctGreen: { color: '#16A34A' },
-  barBg: { width: '82%', height: 8, backgroundColor: '#FFEBF0', borderRadius: 4, overflow: 'hidden', marginBottom: 10 },
+  barBg: { width: '82%', height: 8, backgroundColor: '#EEF2F6', borderRadius: 4, overflow: 'hidden', marginBottom: 10 },
   barFill: { height: '100%', borderRadius: 4 },
   sensorBadge: { fontSize: 11, color: '#A4A4B4', fontWeight: '600' },
 
@@ -539,13 +539,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
     marginBottom: 16,
-    shadowColor: '#FF4D80',
-    shadowOpacity: 0.05,
+    shadowColor: '#6366F1',
+    shadowOpacity: 0.04,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
     elevation: 4,
     borderWidth: 1.5,
-    borderColor: '#FFF0F3',
+    borderColor: '#EEF2F6',
   },
   levelBadge: { width: '100%', paddingVertical: 10, alignItems: 'center' },
   levelBadgeText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 },
@@ -557,14 +557,14 @@ const styles = StyleSheet.create({
   xpFill: { height: '100%', borderRadius: 5 },
   xpLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   xpLabel: { fontSize: 11, color: '#A4A4B4', fontWeight: '700' },
-  maxTag: { marginBottom: 22, backgroundColor: '#FFF0F3', paddingVertical: 6, paddingHorizontal: 20, borderRadius: 12 },
-  maxTagText: { fontSize: 13, fontWeight: '800', color: '#FF4D80' },
+  maxTag: { marginBottom: 22, backgroundColor: '#EEF2F6', paddingVertical: 6, paddingHorizontal: 20, borderRadius: 12 },
+  maxTagText: { fontSize: 13, fontWeight: '800', color: '#6366F1' },
 
   /* 액션 */
   actions: { marginHorizontal: 16, marginBottom: 8 },
   btn: {
     borderRadius: 18, height: 54, alignItems: 'center', justifyContent: 'center', width: '100%',
-    shadowColor: '#FF4D80', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#6366F1', shadowOpacity: 0.10, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
   },
   btnDone: { backgroundColor: '#D1FAE5', marginBottom: 0 },
   btnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16, letterSpacing: 0.2 },
@@ -578,9 +578,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 28,
     padding: 20,
-    shadowColor: '#FF4D80', shadowOpacity: 0.04, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
+    shadowColor: '#6366F1', shadowOpacity: 0.04, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
     elevation: 4,
-    borderWidth: 1.5, borderColor: '#FFF0F3',
+    borderWidth: 1.5, borderColor: '#EEF2F6',
   },
   duoTitle: { fontSize: 14, fontWeight: '900', color: '#1C1C28' },
   duoBadge: { backgroundColor: '#F5EFFB', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10 },
