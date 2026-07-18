@@ -1,8 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
 
-// Firebase 설정 템플릿
-// 사용자가 환경변수(EXPO_PUBLIC_FIREBASE_...)에 키를 등록하면 활성화됩니다.
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "YOUR_API_KEY",
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "YOUR_AUTH_DOMAIN",
@@ -16,7 +14,6 @@ let app;
 let db = null;
 let isFirebaseActive = false;
 
-// Firebase 초기화 시도
 try {
   if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -30,55 +27,44 @@ try {
   console.error("Firebase initialization failed, falling back to Mock DB:", error);
 }
 
-// Firebase 미연동 시 사용할 로컬 메모리 Mock DB
+// 로컬 Mock DB
 const mockDB = {
   userStats: {
     todaySteps: 0,
     accumulatedSteps: 0,
-    points: 100, // 기본 100포인트 증정 (테스트용)
-    characterLevel: 0, // 0: 아기돼지, 1: 사춘기돼지, 2: 헬창돼지
+    points: 100,
+    // 만보(10,000보) 달성 일수 누적 — 캐릭터 레벨 기준
+    dailyGoalAchievements: 0,
+    // 오늘 만보 달성 여부 (하루 1회만 카운트)
+    todayGoalAchieved: false,
+    // 스토리 선택 테마 (랜덤 세팅)
+    storyTheme: null,
   },
   settings: {
-    targetSteps: 5000,
-    warningContacts: [], // ['010-1234-5678', '010-9876-5432']
+    targetSteps: 10000,
+    nickname: '핑키',
+    warningContacts: [],
   },
-  storyHistory: [
-    {
-      id: "1",
-      step: 0,
-      content: "당신은 게으른 아기 아기돼지 핑키입니다. 매일 침대에 누워 과자를 먹는 것이 유일한 낙입니다. 어느 날, 거울 속의 뚱뚱한 자신을 보고 충격을 받았습니다. '나도... 멋진 돼지가 될 수 있을까?' 핑키는 첫걸음을 떼기로 결심했습니다.",
-      selectedOption: null
-    }
-  ]
+  storyHistory: [],
 };
 
-/**
- * 사용자의 운동 스탯을 조회합니다.
- */
 export async function getUserStats(userId = "default_user") {
   if (isFirebaseActive && db) {
     try {
       const docRef = doc(db, "users", userId);
       const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return docSnap.data();
-      } else {
-        // 기본값 저장 후 반환
-        const defaultData = mockDB.userStats;
-        await setDoc(docRef, defaultData);
-        return defaultData;
-      }
+      if (docSnap.exists()) return docSnap.data();
+      const defaultData = { ...mockDB.userStats };
+      await setDoc(docRef, defaultData);
+      return defaultData;
     } catch (e) {
       console.error("Firestore getUserStats error:", e);
-      return mockDB.userStats;
+      return { ...mockDB.userStats };
     }
   }
-  return mockDB.userStats;
+  return { ...mockDB.userStats };
 }
 
-/**
- * 사용자의 운동 스탯을 업데이트합니다.
- */
 export async function updateUserStats(stats, userId = "default_user") {
   if (isFirebaseActive && db) {
     try {
@@ -94,32 +80,23 @@ export async function updateUserStats(stats, userId = "default_user") {
   return true;
 }
 
-/**
- * 앱 설정을 가져옵니다 (목표 걸음수, 경고 연락처).
- */
 export async function getAppSettings(userId = "default_user") {
   if (isFirebaseActive && db) {
     try {
       const docRef = doc(db, "settings", userId);
       const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return docSnap.data();
-      } else {
-        const defaultSettings = mockDB.settings;
-        await setDoc(docRef, defaultSettings);
-        return defaultSettings;
-      }
+      if (docSnap.exists()) return docSnap.data();
+      const defaultSettings = { ...mockDB.settings };
+      await setDoc(docRef, defaultSettings);
+      return defaultSettings;
     } catch (e) {
       console.error("Firestore getAppSettings error:", e);
-      return mockDB.settings;
+      return { ...mockDB.settings };
     }
   }
-  return mockDB.settings;
+  return { ...mockDB.settings };
 }
 
-/**
- * 앱 설정을 업데이트합니다.
- */
 export async function saveAppSettings(settings, userId = "default_user") {
   if (isFirebaseActive && db) {
     try {
@@ -135,32 +112,22 @@ export async function saveAppSettings(settings, userId = "default_user") {
   return true;
 }
 
-/**
- * 진행된 스토리 이력을 가져옵니다.
- */
 export async function getStoryHistory(userId = "default_user") {
   if (isFirebaseActive && db) {
     try {
       const docRef = doc(db, "stories", userId);
       const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return docSnap.data().history || [];
-      } else {
-        const defaultHistory = mockDB.storyHistory;
-        await setDoc(docRef, { history: defaultHistory });
-        return defaultHistory;
-      }
+      if (docSnap.exists()) return docSnap.data().history || [];
+      await setDoc(docRef, { history: [] });
+      return [];
     } catch (e) {
       console.error("Firestore getStoryHistory error:", e);
-      return mockDB.storyHistory;
+      return [...mockDB.storyHistory];
     }
   }
-  return mockDB.storyHistory;
+  return [...mockDB.storyHistory];
 }
 
-/**
- * 진행된 스토리 이력을 업데이트합니다.
- */
 export async function saveStoryHistory(history, userId = "default_user") {
   if (isFirebaseActive && db) {
     try {
