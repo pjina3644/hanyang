@@ -182,15 +182,9 @@ export default function HomeScreen({ userId = "default_user" }) {
     const nextDays   = dailyGoalAchievements + 1;
     const nextPoints = points + 100;
     pointsRef.current = nextPoints;
-    const prevChar = getCharacterInfo(dailyGoalAchievements, nickname);
-    const nextChar = getCharacterInfo(nextDays, nickname);
     setDailyGoalAchievements(nextDays);
     setPoints(nextPoints);
     await updateUserStats({ dailyGoalAchievements: nextDays, points: nextPoints }, userId);
-    if (nextChar.level > prevChar.level)
-      Alert.alert('🚀 레벨업!', `'${prevChar.name}' → '${nextChar.name}'\n으로 진화했습니다! (시연용 추가)`);
-    else
-      Alert.alert('✅ 달성일수 추가 완료', `누적 달성일: ${nextDays}일 (+100P)`);
   };
 
   // 꼼수 감지용 자이로 센서 등록
