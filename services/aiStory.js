@@ -175,12 +175,16 @@ ${historyText}
           'X-Title': 'Pinky Fitness'
         },
         body: JSON.stringify({
-          model: "google/gemma-2-9b-it:free",
+          model: "openrouter/free",
           messages: [{ role: "user", content: prompt }]
         })
       });
 
       const data = await response.json();
+      if (data.error) {
+        console.error("OpenRouter API error response:", data.error);
+        throw new Error(data.error.message || "OpenRouter error");
+      }
       const raw = data.choices[0].message.content.trim();
       const clean = raw.replace(/```json|```/g, '').trim();
       const result = JSON.parse(clean);
@@ -248,11 +252,15 @@ ${duoContext}
           'X-Title': 'Pinky Fitness'
         },
         body: JSON.stringify({
-          model: "google/gemma-2-9b-it:free",
+          model: "openrouter/free",
           messages: [{ role: "user", content: prompt }]
         })
       });
       const data = await response.json();
+      if (data.error) {
+        console.error("OpenRouter SMS API error response:", data.error);
+        throw new Error(data.error.message || "OpenRouter error");
+      }
       const txt = data.choices[0].message.content.trim();
       return txt.replace(/["']/g, '');
     } catch (e) {
