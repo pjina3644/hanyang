@@ -178,6 +178,21 @@ export default function HomeScreen({ userId = "default_user" }) {
       Alert.alert('✅ 만보 달성!', `누적 달성일: ${nextDays}일 (+100P)`);
   }, [dailyGoalAchievements, todayGoalAchieved, nickname]);
 
+  const handleDemoAddAchievement = async () => {
+    const nextDays   = dailyGoalAchievements + 1;
+    const nextPoints = points + 100;
+    pointsRef.current = nextPoints;
+    const prevChar = getCharacterInfo(dailyGoalAchievements, nickname);
+    const nextChar = getCharacterInfo(nextDays, nickname);
+    setDailyGoalAchievements(nextDays);
+    setPoints(nextPoints);
+    await updateUserStats({ dailyGoalAchievements: nextDays, points: nextPoints }, userId);
+    if (nextChar.level > prevChar.level)
+      Alert.alert('🚀 레벨업!', `'${prevChar.name}' → '${nextChar.name}'\n으로 진화했습니다! (시연용 추가)`);
+    else
+      Alert.alert('✅ 달성일수 추가 완료', `누적 달성일: ${nextDays}일 (+100P)`);
+  };
+
   // 꼼수 감지용 자이로 센서 등록
   useEffect(() => {
     let shakeCount = 0;
@@ -224,20 +239,20 @@ export default function HomeScreen({ userId = "default_user" }) {
   }, [steps, duoName]);
 
   const handleAddManualSteps = async (amount) => {
-    if (isCheatingRef.current) {
+    if (isCheatingRef.current && amount > 0) {
       Alert.alert('꼼수 방지', '치팅이 감지되어 걸음수 수동 추가가 차단되었습니다!');
       return;
     }
-    const nextSteps = steps + amount;
+    const nextSteps = Math.max(0, steps + amount);
     const prevMile  = Math.floor(accumulatedSteps / 1000);
-    const nextAcc   = accumulatedSteps + amount;
+    const nextAcc   = Math.max(0, accumulatedSteps + amount);
     const nextMile  = Math.floor(nextAcc / 1000);
     let bonus = 0;
-    if (nextMile > prevMile) {
+    if (amount > 0 && nextMile > prevMile) {
       bonus = (nextMile - prevMile) * 50;
       Alert.alert('🎉 마일스톤!', `${nextMile * 1000}보 돌파! +${bonus}P`);
     }
-    const nextPoints = points + bonus;
+    const nextPoints = Math.max(0, points + bonus);
     accRef.current = nextAcc;
     lastTotalRef.current = nextSteps;
     setSteps(nextSteps); setAccumulatedSteps(nextAcc); setPoints(nextPoints); pointsRef.current = nextPoints;
@@ -446,6 +461,31 @@ export default function HomeScreen({ userId = "default_user" }) {
             </TouchableOpacity>
           </>
         )}
+
+        {/* ─── 🛠️ 시연용 컨트롤 패널 ─── */}
+        <View style={{ marginHorizontal: 16, marginTop: 12, marginBottom: 12, backgroundColor: '#FEF3C7', borderRadius: 24, padding: 18, borderWidth: 1.5, borderColor: '#F59E0B' }}>
+          <Text style={{ fontSize: 13, fontWeight: '800', color: '#D97706', marginBottom: 10, textAlign: 'center' }}>
+            🛠️ 시연용 컨트롤 (Demo Controls)
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+            <TouchableOpacity onPress={() => handleAddManualSteps(1000)} activeOpacity={0.80} style={{ flex: 1 }}>
+              <LinearGradient colors={['#F59E0B', '#D97706']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>+1,000보</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleAddManualSteps(-1000)} activeOpacity={0.80} style={{ flex: 1 }}>
+              <LinearGradient colors={['#EF4444', '#DC2626']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>-1,000보</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity onPress={handleDemoAddAchievement} activeOpacity={0.80}>
+            <LinearGradient colors={['#10B981', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>🏆 만보 달성일수 +1일 (레벨업 테스트)</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
       </View>
     </ScrollView>
 

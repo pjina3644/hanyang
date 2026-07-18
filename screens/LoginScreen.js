@@ -53,7 +53,7 @@ export default function LoginScreen({ onLoginSuccess }) {
       }
     } catch (error) {
       setIsLoading(false);
-      console.error(error);
+      console.warn("Auth error:", error.message || error);
       let errMsg = '인증에 실패했습니다. 입력한 정보를 확인해 주세요.';
       if (error.code === 'auth/email-already-in-use') {
         errMsg = '이미 사용 중인 이메일 주소입니다.';

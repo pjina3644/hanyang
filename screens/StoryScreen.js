@@ -35,9 +35,13 @@ export default function StoryScreen({ userId = "default_user" }) {
       setHistory(hist);
       setStoryKeys(stats.storyKeys || 0);
       if (hist.length > 0 && hist[0].themeId) {
-        setActiveTheme(STORY_THEMES.find(t => t.id === hist[0].themeId) || getRandomTheme());
+        setActiveTheme(STORY_THEMES.find(t => t.id === hist[0].themeId) || STORY_THEMES[0]);
+      } else if (stats.storyTheme) {
+        setActiveTheme(STORY_THEMES.find(t => t.id === stats.storyTheme) || STORY_THEMES[0]);
       } else {
-        setActiveTheme(getRandomTheme());
+        const randTheme = getRandomTheme();
+        setActiveTheme(randTheme);
+        await updateUserStats({ storyTheme: randTheme.id }, userId);
       }
     };
     load();
@@ -97,6 +101,7 @@ export default function StoryScreen({ userId = "default_user" }) {
         { text: '초기화', style: 'destructive', onPress: async () => {
           const t = getRandomTheme(); setActiveTheme(t); setHistory([]);
           await saveStoryHistory([], userId);
+          await updateUserStats({ storyTheme: t.id }, userId);
         }}]
     );
   };
