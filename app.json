@@ -5,6 +5,16 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "platforms": ["ios", "android", "web"],
+    "ios": {
+      "infoPlist": {
+        "NSMotionUsageDescription": "걸음수를 실시간으로 측정하기 위해 동작 센서 접근 권한이 필요합니다.",
+        "NSHealthUpdateUsageDescription": "건강 데이터에 걸음수를 기록합니다.",
+        "NSHealthShareUsageDescription": "오늘의 걸음수를 불러오기 위해 건강 데이터 접근이 필요합니다."
+      }
+    },
+    "android": {
+      "permissions": ["android.permission.ACTIVITY_RECOGNITION"]
+    },
     "web": {
       "bundler": "metro",
       "output": "single",

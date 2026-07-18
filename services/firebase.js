@@ -39,6 +39,8 @@ const mockDB = {
     todayGoalAchieved: false,
     // 스토리 선택 테마 (랜덤 세팅)
     storyTheme: null,
+    // 마지막 일일 초기화 날짜 (자정 리셋용)
+    lastResetDate: '',
   },
   settings: {
     targetSteps: 10000,
