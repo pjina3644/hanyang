@@ -1,4 +1,5 @@
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
+const OPENROUTER_API_KEY = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY || "";
 
 // 랜덤 재미 테마 풀
 export const STORY_THEMES = [
@@ -95,7 +96,8 @@ const OFFLINE_STORIES = {
 export async function generateNextStorySegment(history, userChoice = "", theme = null, currentSteps = 0, nickname = '주인공') {
   const activeTheme = theme || getRandomTheme();
 
-  if (!GEMINI_API_KEY) {
+  // 만약 두 API 키 모두 없으면 오프라인 백업을 사용합니다.
+  if (!GEMINI_API_KEY && !OPENROUTER_API_KEY) {
     // 오프라인 분기 사용
     const themeStories = OFFLINE_STORIES[activeTheme.id] || OFFLINE_STORIES['zombie'];
     const idx = Math.min(history.length, themeStories.length - 1);
@@ -111,14 +113,11 @@ export async function generateNextStorySegment(history, userChoice = "", theme =
     return { content, options: branch.options, themeId: activeTheme.id };
   }
 
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+  const historyText = history.length > 0
+    ? history.map((h, i) => `[챕터 ${i + 1}] ${h.content} ${h.selectedOption ? `(선택: ${h.selectedOption})` : ''}`).join('\n\n')
+    : '(스토리 시작 전)';
 
-    const historyText = history.length > 0
-      ? history.map((h, i) => `[챕터 ${i + 1}] ${h.content} ${h.selectedOption ? `(선택: ${h.selectedOption})` : ''}`).join('\n\n')
-      : '(스토리 시작 전)';
-
-    const prompt = `
+  const prompt = `
 역할: 너는 재미있고 유머러스한 한국 웹소설 작가야.
 테마: ${activeTheme.name} — ${activeTheme.desc}
 주인공 이름/닉네임: ${nickname}
@@ -141,26 +140,62 @@ ${historyText}
 {"content":"스토리 내용","options":[{"text":"선택지1","costPoints":30},{"text":"선택지2","costPoints":20}]}
 `;
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-    });
+  // 1. 제미나이 API 키가 있으면 제미나이를 사용합니다.
+  if (GEMINI_API_KEY) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      });
 
-    const data = await response.json();
-    const raw = data.candidates[0].content.parts[0].text.trim();
-    const clean = raw.replace(/```json|```/g, '').trim();
-    const result = JSON.parse(clean);
+      const data = await response.json();
+      const raw = data.candidates[0].content.parts[0].text.trim();
+      const clean = raw.replace(/```json|```/g, '').trim();
+      const result = JSON.parse(clean);
 
-    return { content: result.content, options: result.options, themeId: activeTheme.id };
-  } catch (error) {
-    console.error("Gemini 호출 실패, 오프라인 백업 사용:", error);
-    const themeStories = OFFLINE_STORIES[activeTheme.id] || OFFLINE_STORIES['zombie'];
-    const branch = themeStories[0];
-    return {
-      content: branch.content.replace('{steps}', currentSteps.toLocaleString()).replace(/주인공/g, nickname),
-      options: branch.options,
-      themeId: activeTheme.id,
-    };
+      return { content: result.content, options: result.options, themeId: activeTheme.id };
+    } catch (error) {
+      console.error("Gemini 호출 실패, OpenRouter/오프라인으로 폴백 시도:", error);
+    }
   }
+
+  // 2. 오픈라우터 API 키가 있으면 오픈라우터를 사용합니다 (만 18세 미만 무료 모델 지원).
+  if (OPENROUTER_API_KEY) {
+    try {
+      const url = "https://openrouter.ai/api/v1/chat/completions";
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'HTTP-Referer': 'https://github.com/pjina3644/hanyang',
+          'X-Title': 'Pinky Fitness'
+        },
+        body: JSON.stringify({
+          model: "google/gemma-2-9b-it:free",
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+
+      const data = await response.json();
+      const raw = data.choices[0].message.content.trim();
+      const clean = raw.replace(/```json|```/g, '').trim();
+      const result = JSON.parse(clean);
+
+      return { content: result.content, options: result.options, themeId: activeTheme.id };
+    } catch (error) {
+      console.error("OpenRouter 호출 실패:", error);
+    }
+  }
+
+  // 3. 둘 다 실패하거나 키가 없으면 오프라인 백업을 사용합니다.
+  const themeStories = OFFLINE_STORIES[activeTheme.id] || OFFLINE_STORIES['zombie'];
+  const branch = themeStories[0];
+  return {
+    content: branch.content.replace('{steps}', currentSteps.toLocaleString()).replace(/주인공/g, nickname),
+    options: branch.options,
+    themeId: activeTheme.id,
+  };
 }
