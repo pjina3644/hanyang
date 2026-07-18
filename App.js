@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Platform, SafeAreaView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, Platform, SafeAreaView, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import HomeScreen from './screens/HomeScreen';
 import StoryScreen from './screens/StoryScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import LoginScreen from './screens/LoginScreen';
+import { auth, isFirebaseActive } from './services/firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 const TABS = [
   { id: 'Home',     icon: '🐷', label: '홈' },
@@ -13,13 +16,52 @@ const TABS = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('Home');
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(isFirebaseActive);
+
+  useEffect(() => {
+    if (isFirebaseActive && auth) {
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setCurrentUser(user);
+        setIsAuthLoading(false);
+      });
+      return unsubscribe;
+    } else {
+      setIsAuthLoading(false);
+    }
+  }, []);
+
+  const handleLogout = async () => {
+    if (isFirebaseActive && auth) {
+      await signOut(auth);
+    }
+    setCurrentUser(null);
+  };
+
+  if (isAuthLoading) {
+    return (
+      <SafeAreaView style={[styles.root, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAFAFC' }]}>
+        <ActivityIndicator size="large" color="#2563EB" />
+      </SafeAreaView>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <SafeAreaView style={[styles.root, { backgroundColor: '#FAFAFC' }]}>
+        <LoginScreen onLoginSuccess={(user) => setCurrentUser(user)} />
+      </SafeAreaView>
+    );
+  }
+
+  const userId = currentUser.uid;
 
   return (
     <SafeAreaView style={styles.root}>
       <View style={styles.content}>
-        {activeTab === 'Home'     && <HomeScreen />}
-        {activeTab === 'Story'    && <StoryScreen />}
-        {activeTab === 'Settings' && <SettingsScreen />}
+        {activeTab === 'Home'     && <HomeScreen userId={userId} />}
+        {activeTab === 'Story'    && <StoryScreen userId={userId} />}
+        {activeTab === 'Settings' && <SettingsScreen userId={userId} onLogout={handleLogout} />}
       </View>
 
       <View style={styles.tabBar}>
@@ -34,7 +76,7 @@ export default function App() {
             >
               {active ? (
                 <LinearGradient
-                  colors={['#6366F1', '#8B5CF6']}
+                  colors={['#2563EB', '#06B6D4']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.pill}
@@ -75,13 +117,13 @@ const styles = StyleSheet.create({
     borderRadius: 33,
     alignItems: 'center',
     paddingHorizontal: 8,
-    shadowColor: '#6366F1',
+    shadowColor: '#2563EB',
     shadowOpacity: 0.12,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
     elevation: 10,
     borderWidth: 1.5,
-    borderColor: '#EEF2F6',
+    borderColor: '#EFF6FF',
   },
   tabItem: {
     flex: 1,

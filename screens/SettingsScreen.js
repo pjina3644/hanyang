@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { getAppSettings, saveAppSettings, getUserStats, updateUserStats } from '../services/firebase';
 
 function getCharPreview(nickname) {
-  const n = nickname || '핑키';
+  const n = nickname || '사용자';
   return `돼지${n}  →  인간${n}  →  운동왕${n}  →  존예${n}`;
 }
 
@@ -22,9 +22,9 @@ function Avatar({ name }) {
   );
 }
 
-export default function SettingsScreen() {
-  const [nickname,      setNickname]      = useState('핑키');
-  const [nicknameInput, setNicknameInput] = useState('핑키');
+export default function SettingsScreen({ userId = "default_user", onLogout }) {
+  const [nickname,      setNickname]      = useState('');
+  const [nicknameInput, setNicknameInput] = useState('');
   const [targetSteps,   setTargetSteps]   = useState(10000);
   const [contactsList,  setContactsList]  = useState([]);
   const [manualName,    setManualName]    = useState('');
@@ -40,34 +40,34 @@ export default function SettingsScreen() {
   const [duoPhoneInput, setDuoPhoneInput] = useState('');
 
   useEffect(() => {
-    getAppSettings().then(s => {
+    getAppSettings(userId).then(s => {
       setTargetSteps(s.targetSteps || 10000);
-      setNickname(s.nickname || '핑키');
-      setNicknameInput(s.nickname || '핑키');
+      setNickname(s.nickname || '');
+      setNicknameInput(s.nickname || '');
       setContactsList(s.warningContacts || []);
       setDuoName(s.duoName || '');
       setDuoNameInput(s.duoName || '');
       setDuoPhone(s.duoPhone || '');
       setDuoPhoneInput(s.duoPhone || '');
     });
-    getUserStats().then(u => {
+    getUserStats(userId).then(u => {
       setPoints(u.points || 0);
       setShieldActive(u.shieldActive || false);
       setStoryKeys(u.storyKeys || 0);
     });
-  }, []);
+  }, [userId]);
 
   const handleSaveNickname = async () => {
     const trimmed = nicknameInput.trim();
     if (!trimmed) { Alert.alert('입력 오류', '닉네임을 입력해주세요.'); return; }
     setNickname(trimmed);
-    await saveAppSettings({ nickname: trimmed });
+    await saveAppSettings({ nickname: trimmed }, userId);
     Alert.alert('저장 완료', `닉네임이 '${trimmed}'으로 변경됐습니다!`);
   };
 
   const handleSaveTarget = async (steps) => {
     setTargetSteps(steps);
-    await saveAppSettings({ targetSteps: steps });
+    await saveAppSettings({ targetSteps: steps }, userId);
     Alert.alert('설정 완료', `목표 걸음수 ${steps.toLocaleString()}보 저장`);
   };
 
@@ -82,14 +82,14 @@ export default function SettingsScreen() {
     const updated    = [...contactsList, newContact];
     setContactsList(updated);
     setManualName(''); setManualPhone('');
-    await saveAppSettings({ warningContacts: updated });
+    await saveAppSettings({ warningContacts: updated }, userId);
     Alert.alert('추가 완료', `[${newContact.name}] 님을 경고 수신자로 등록했습니다.`);
   };
 
   const handleDelete = async (phone) => {
     const updated = contactsList.filter(c => c.phone !== phone);
     setContactsList(updated);
-    await saveAppSettings({ warningContacts: updated });
+    await saveAppSettings({ warningContacts: updated }, userId);
   };
 
   // 실드 구매 처리
@@ -105,7 +105,7 @@ export default function SettingsScreen() {
     const newPoints = points - 100;
     setPoints(newPoints);
     setShieldActive(true);
-    await updateUserStats({ points: newPoints, shieldActive: true });
+    await updateUserStats({ points: newPoints, shieldActive: true }, userId);
     Alert.alert('구매 성공', '🛡️ 하루 벌칙 방지 실드를 구매하여 오늘 하루 동안 페널티가 면제됩니다!');
   };
 
@@ -119,12 +119,21 @@ export default function SettingsScreen() {
     const newKeys = storyKeys + 1;
     setPoints(newPoints);
     setStoryKeys(newKeys);
-    await updateUserStats({ points: newPoints, storyKeys: newKeys });
+    await updateUserStats({ points: newPoints, storyKeys: newKeys }, userId);
     Alert.alert('구매 성공', '🔑 히든 스토리 열쇠를 1개 구매했습니다! [스토리] 탭에서 히든 선택지를 선택할 수 있게 됩니다.');
   };
 
-  // 행운의 랜덤 박스 구매 처리
+  // 행운의 랜덤 박스 구매 처리 (하루 한 번 제한)
   const handleBuyRandomBox = async () => {
+    const today = new Date().toDateString();
+    
+    // 최신 stats를 조회하여 검증
+    const stats = await getUserStats(userId);
+    if (stats.lastRandomBoxDate === today) {
+      Alert.alert('하루 한 번 제한', '행운의 랜덤 박스는 하루에 단 한 번만 뽑을 수 있습니다! 내일 다시 도전해 주세요.');
+      return;
+    }
+
     if (points < 50) {
       Alert.alert('포인트 부족', '랜덤 박스를 구매하려면 50 포인트가 필요합니다.');
       return;
@@ -134,14 +143,14 @@ export default function SettingsScreen() {
     const prize = rewards[Math.floor(Math.random() * rewards.length)];
     const newPoints = points - cost + prize;
     setPoints(newPoints);
-    await updateUserStats({ points: newPoints });
+    await updateUserStats({ points: newPoints, lastRandomBoxDate: today }, userId);
     
     if (prize > cost) {
       Alert.alert('🎉 대박 당첨!', `축하합니다! 랜덤 박스에서 [${prize} P]가 나왔습니다! (+${prize - cost}P 이득!)`);
     } else if (prize === cost) {
       Alert.alert('본전!', `랜덤 박스에서 [50 P]가 나왔습니다! 본전이네요!`);
     } else {
-      Alert.alert('아쉬워요!', `랜덤 박스에서 [${prize} P]가 나왔습니다. 다음 기회에 더 대박을 노려보세요!`);
+      Alert.alert('아쉬워요!', `랜덤 박스에서 [${prize} P]가 나왔습니다. 내일 더 대박을 노려보세요!`);
     }
   };
 
@@ -155,7 +164,7 @@ export default function SettingsScreen() {
     }
     setDuoName(trimmedName);
     setDuoPhone(trimmedPhone);
-    await saveAppSettings({ duoName: trimmedName, duoPhone: trimmedPhone });
+    await saveAppSettings({ duoName: trimmedName, duoPhone: trimmedPhone }, userId);
     Alert.alert('연동 완료', `👥 [${trimmedName}] 님과 2인 연대책임 듀오 챌린지를 시작합니다!`);
   };
 
@@ -165,7 +174,7 @@ export default function SettingsScreen() {
     setDuoPhone('');
     setDuoNameInput('');
     setDuoPhoneInput('');
-    await saveAppSettings({ duoName: '', duoPhone: '' });
+    await saveAppSettings({ duoName: '', duoPhone: '' }, userId);
     Alert.alert('연동 해제', '듀오 챌린지 연동을 해제했습니다.');
   };
 
@@ -173,7 +182,7 @@ export default function SettingsScreen() {
     <ScrollView style={styles.scroll} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
       {/* ─── 헤더 배너 ─── */}
-      <LinearGradient colors={['#6366F1', '#8B5CF6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.banner}>
+      <LinearGradient colors={['#2563EB', '#06B6D4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.banner}>
         <Text style={styles.bannerTitle}>⚙️ Settings</Text>
         <View style={styles.bannerPreviewBox}>
           <Text style={styles.bannerPreviewLabel}>캐릭터 이름 미리보기</Text>
@@ -197,7 +206,7 @@ export default function SettingsScreen() {
             maxLength={10}
           />
           <TouchableOpacity onPress={handleSaveNickname} activeOpacity={0.85}>
-            <LinearGradient colors={['#6366F1', '#8B5CF6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
+            <LinearGradient colors={['#2563EB', '#06B6D4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
               <Text style={styles.saveBtnText}>저장</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -213,7 +222,7 @@ export default function SettingsScreen() {
             const active = targetSteps === s;
             return active ? (
               <TouchableOpacity key={s} onPress={() => handleSaveTarget(s)} activeOpacity={0.85} style={{ flex: 1 }}>
-                <LinearGradient colors={['#6366F1', '#8B5CF6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.presetBtn}>
+                <LinearGradient colors={['#2563EB', '#06B6D4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.presetBtn}>
                   <Text style={styles.presetTextActive}>{s.toLocaleString()}</Text>
                   <Text style={styles.presetUnitActive}>보</Text>
                 </LinearGradient>
@@ -287,15 +296,15 @@ export default function SettingsScreen() {
         <Text style={styles.sectionDesc}>친구와 듀오가 되어 같이 걸으세요! 둘 중 하나라도 낙오 시 등록된 친구의 폰으로도 페널티 문자가 전송됩니다.</Text>
         
         {duoName ? (
-          <View style={{ backgroundColor: '#F5EFFB', padding: 16, borderRadius: 16, borderWidth: 1.5, borderColor: '#EEF2F6' }}>
+          <View style={{ backgroundColor: '#F5F3FF', padding: 16, borderRadius: 16, borderWidth: 1.5, borderColor: '#E5E7EB' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
               <Text style={{ fontSize: 24 }}>👥</Text>
               <View>
                 <Text style={{ fontSize: 14, fontWeight: '800', color: '#1C1C28' }}>{duoName} 님과 연동 중</Text>
-                <Text style={{ fontSize: 12, color: '#8B5CF6', marginTop: 2, fontWeight: '600' }}>{duoPhone}</Text>
+                <Text style={{ fontSize: 12, color: '#2563EB', marginTop: 2, fontWeight: '600' }}>{duoPhone}</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={handleRemoveDuo} activeOpacity={0.85} style={{ backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#EEF2F6', height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
+            <TouchableOpacity onPress={handleRemoveDuo} activeOpacity={0.85} style={{ backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E5E7EB', height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: 13, color: '#EF4444', fontWeight: '800' }}>듀오 챌린지 끊기</Text>
             </TouchableOpacity>
           </View>
@@ -319,7 +328,7 @@ export default function SettingsScreen() {
               />
             </View>
             <TouchableOpacity onPress={handleSaveDuo} activeOpacity={0.85}>
-              <LinearGradient colors={['#7C3AED', '#A78BFA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }}>
+              <LinearGradient colors={['#2563EB', '#06B6D4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>듀오 챌린지 시작하기</Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -383,6 +392,13 @@ export default function SettingsScreen() {
         )}
       </View>
 
+      {/* ─── 로그아웃 ─── */}
+      <View style={[styles.section, { marginBottom: 60 }]}>
+        <TouchableOpacity onPress={onLogout} activeOpacity={0.85} style={{ height: 48, backgroundColor: '#EF4444', borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>로그아웃</Text>
+        </TouchableOpacity>
+      </View>
+
     </ScrollView>
   );
 }
@@ -405,9 +421,9 @@ const styles = StyleSheet.create({
   section: {
     marginHorizontal: 16, marginTop: 16,
     backgroundColor: '#FFFFFF', borderRadius: 28, padding: 22,
-    shadowColor: '#6366F1', shadowOpacity: 0.04, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
+    shadowColor: '#2563EB', shadowOpacity: 0.04, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
     elevation: 4,
-    borderWidth: 1.5, borderColor: '#EEF2F6',
+    borderWidth: 1.5, borderColor: '#EFF6FF',
   },
   sectionFirst: {
     marginTop: -24,
@@ -418,7 +434,7 @@ const styles = StyleSheet.create({
   /* 닉네임 */
   nicknameRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   input: {
-    flex: 1, height: 48, borderWidth: 1.5, borderColor: '#EEF2F6',
+    flex: 1, height: 48, borderWidth: 1.5, borderColor: '#EFF6FF',
     borderRadius: 14, paddingHorizontal: 14, fontSize: 14,
     color: '#1C1C28', backgroundColor: '#FAFAFC',
   },
@@ -431,7 +447,7 @@ const styles = StyleSheet.create({
     flex: 1, height: 54, borderRadius: 16,
     alignItems: 'center', justifyContent: 'center',
   },
-  presetBtnInactive: { backgroundColor: '#FAFAFC', borderWidth: 1.5, borderColor: '#EEF2F6' },
+  presetBtnInactive: { backgroundColor: '#FAFAFC', borderWidth: 1.5, borderColor: '#EFF6FF' },
   presetText:       { fontSize: 15, fontWeight: '800', color: '#A4A4B4' },
   presetUnit:       { fontSize: 11, color: '#B4B4C4', fontWeight: '600' },
   presetTextActive: { fontSize: 15, fontWeight: '900', color: '#FFFFFF' },
@@ -450,7 +466,7 @@ const styles = StyleSheet.create({
   listHeader: { fontSize: 13, fontWeight: '800', color: '#6B6B80', marginBottom: 12, letterSpacing: -0.2 },
   emptyBox: {
     alignItems: 'center', paddingVertical: 26, backgroundColor: '#FAFAFC', borderRadius: 16,
-    borderWidth: 1.5, borderColor: '#EEF2F6', borderStyle: 'dashed',
+    borderWidth: 1.5, borderColor: '#EFF6FF', borderStyle: 'dashed',
   },
   emptyIcon: { fontSize: 32, marginBottom: 8 },
   emptyText: { fontSize: 14, fontWeight: '800', color: '#8A8A9A', marginBottom: 3 },

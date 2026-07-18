@@ -32,7 +32,7 @@ const LEVEL_COLORS = [
   ['#F3E5F5', '#AB47BC'],
 ];
 
-export default function HomeScreen() {
+export default function HomeScreen({ userId = "default_user" }) {
   const [steps, setSteps]                           = useState(0);
   const [accumulatedSteps, setAccumulatedSteps]     = useState(0);
   const [targetSteps, setTargetSteps]               = useState(10000);
@@ -63,7 +63,7 @@ export default function HomeScreen() {
   useEffect(() => {
     let mounted = true;
     const init = async () => {
-      const [stats, settings] = await Promise.all([getUserStats(), getAppSettings()]);
+      const [stats, settings] = await Promise.all([getUserStats(userId), getAppSettings(userId)]);
       if (!mounted) return;
 
       const savedNickname  = settings.nickname       || '핑키';
@@ -96,7 +96,7 @@ export default function HomeScreen() {
         todayAchieved = false;
         goalAlertShownRef.current = false;
         // 하루가 지나면 실드도 같이 자동 리셋 처리
-        await updateUserStats({ todaySteps: 0, todayGoalAchieved: false, lastResetDate: today, shieldActive: false });
+        await updateUserStats({ todaySteps: 0, todayGoalAchieved: false, lastResetDate: today, shieldActive: false }, userId);
         setShieldActive(false);
       }
 
@@ -120,7 +120,7 @@ export default function HomeScreen() {
         accRef.current = newAcc;
         setSteps(healthSteps);
         setAccumulatedSteps(newAcc);
-        if (delta !== 0) await updateUserStats({ todaySteps: healthSteps, accumulatedSteps: newAcc });
+        if (delta !== 0) await updateUserStats({ todaySteps: healthSteps, accumulatedSteps: newAcc }, userId);
 
         pedometerSub.current = startStepCountSubscription((stepsFromSub) => {
           if (isCheatingRef.current) return; // 꼼수 작동 시 걸음수 업데이트 차단
@@ -132,7 +132,7 @@ export default function HomeScreen() {
             accRef.current = newAcc2;
             setSteps(total);
             setAccumulatedSteps(newAcc2);
-            updateUserStats({ todaySteps: total, accumulatedSteps: newAcc2 });
+            updateUserStats({ todaySteps: total, accumulatedSteps: newAcc2 }, userId);
           }
         });
       } else {
@@ -171,7 +171,7 @@ export default function HomeScreen() {
     setDailyGoalAchievements(nextDays);
     setTodayGoalAchieved(true);
     setPoints(nextPoints);
-    await updateUserStats({ dailyGoalAchievements: nextDays, todayGoalAchieved: true, points: nextPoints });
+    await updateUserStats({ dailyGoalAchievements: nextDays, todayGoalAchieved: true, points: nextPoints }, userId);
     if (nextChar.level > prevChar.level)
       Alert.alert('🚀 레벨업!', `'${prevChar.name}' → '${nextChar.name}'\n으로 진화했습니다!`);
     else
@@ -241,7 +241,7 @@ export default function HomeScreen() {
     accRef.current = nextAcc;
     lastTotalRef.current = nextSteps;
     setSteps(nextSteps); setAccumulatedSteps(nextAcc); setPoints(nextPoints); pointsRef.current = nextPoints;
-    await updateUserStats({ todaySteps: nextSteps, accumulatedSteps: nextAcc, points: nextPoints });
+    await updateUserStats({ todaySteps: nextSteps, accumulatedSteps: nextAcc, points: nextPoints }, userId);
   };
 
   const handleWarningSMS = async () => {
@@ -255,7 +255,7 @@ export default function HomeScreen() {
           text: '확인',
           onPress: async () => {
             setShieldActive(false);
-            await updateUserStats({ shieldActive: false });
+            await updateUserStats({ shieldActive: false }, userId);
           }
         }
       ]);
@@ -276,7 +276,7 @@ export default function HomeScreen() {
             if (ok) {
               const p = Math.max(0, pointsRef.current - 20);
               pointsRef.current = p; setPoints(p);
-              await updateUserStats({ points: p });
+              await updateUserStats({ points: p }, userId);
             }
           } catch (e) {
             setIsGeneratingSMS(false);
@@ -294,7 +294,7 @@ export default function HomeScreen() {
   const todayPct   = Math.min(100, Math.floor((steps / targetSteps) * 100));
   const progressPct = Math.min(100, charInfo.progress * 100);
   const achieved   = steps >= targetSteps;
-  const ringColor  = achieved ? '#22C55E' : '#6366F1';
+  const ringColor  = achieved ? '#22C55E' : '#2563EB';
   const lvlColors  = LEVEL_COLORS[charInfo.level];
 
   return (
@@ -302,7 +302,7 @@ export default function HomeScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
         {/* ─── 헤더 ─── */}
-        <LinearGradient colors={['#6366F1', '#8B5CF6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.header}>
+        <LinearGradient colors={['#2563EB', '#06B6D4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.header}>
           <Text style={styles.logo}>🏃 Prototype</Text>
           <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
             {shieldActive && (
@@ -326,14 +326,14 @@ export default function HomeScreen() {
               </View>
             </View>
             <View style={{ flexDirection: 'row', gap: 14, marginTop: 12, alignItems: 'center' }}>
-              <View style={{ flex: 1, backgroundColor: '#FAFAFC', padding: 12, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: '#EEF2F6' }}>
-                <Text style={{ fontSize: 11, color: '#6366F1', fontWeight: '800' }}>나 ({nickname})</Text>
-                <Text style={{ fontSize: 16, fontWeight: '900', color: '#1C1C28', marginTop: 4 }}>{steps.toLocaleString()}보</Text>
+              <View style={{ flex: 1, backgroundColor: '#FAFAFC', padding: 12, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: '#EFF6FF' }}>
+                <Text style={{ fontSize: 11, color: '#2563EB', fontWeight: '800', width: '100%', textAlign: 'center' }} numberOfLines={1} ellipsizeMode="tail">나 ({nickname})</Text>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: '#1C1C28', marginTop: 4 }} numberOfLines={1} adjustsFontSizeToFit>{steps.toLocaleString()}보</Text>
               </View>
               <Text style={{ fontSize: 16, color: '#DCDCE6', fontWeight: '900' }}>vs</Text>
-              <View style={{ flex: 1, backgroundColor: '#FAFAFC', padding: 12, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: '#EEF2F6' }}>
-                <Text style={{ fontSize: 11, color: '#A78BFA', fontWeight: '800' }}>파트너 ({duoName})</Text>
-                <Text style={{ fontSize: 16, fontWeight: '900', color: '#1C1C28', marginTop: 4 }}>{duoSteps.toLocaleString()}보</Text>
+              <View style={{ flex: 1, backgroundColor: '#FAFAFC', padding: 12, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: '#EFF6FF' }}>
+                <Text style={{ fontSize: 11, color: '#06B6D4', fontWeight: '800', width: '100%', textAlign: 'center' }} numberOfLines={1} ellipsizeMode="tail">파트너 ({duoName})</Text>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: '#1C1C28', marginTop: 4 }} numberOfLines={1} adjustsFontSizeToFit>{duoSteps.toLocaleString()}보</Text>
               </View>
             </View>
           </View>
@@ -352,7 +352,7 @@ export default function HomeScreen() {
         {/* 선형 진행 바 */}
         <View style={styles.barBg}>
           <LinearGradient
-            colors={achieved ? ['#22C55E', '#16A34A'] : ['#6366F1', '#8B5CF6']}
+            colors={achieved ? ['#22C55E', '#16A34A'] : ['#2563EB', '#06B6D4']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             style={[styles.barFill, { width: `${todayPct}%` }]}
           />
@@ -371,7 +371,7 @@ export default function HomeScreen() {
         </LinearGradient>
 
         <Image source={CHAR_IMAGES[charInfo.level]} style={styles.charImage} resizeMode="contain" />
-        <Text style={styles.charName}>{charInfo.name}</Text>
+        <Text style={styles.charName} numberOfLines={1} ellipsizeMode="tail">{charInfo.name}</Text>
         <Text style={styles.charDesc}>{charInfo.desc}</Text>
 
         {/* XP 바 */}
@@ -469,9 +469,9 @@ export default function HomeScreen() {
           <Text style={{ fontSize: 13, color: '#8A8A9A', textAlign: 'center', lineHeight: 21, marginBottom: 24, fontWeight: '500' }}>
             비정상적인 흔들기가 감지되었습니다!{"\n"}
             신체 활동만 올바르게 인정됩니다.{"\n"}
-            <Text style={{ color: '#6366F1', fontWeight: '800' }}>걸음수 카운트가 5초간 동결됩니다.</Text>
+            <Text style={{ color: '#2563EB', fontWeight: '800' }}>걸음수 카운트가 5초간 동결됩니다.</Text>
           </Text>
-          <TouchableOpacity onPress={() => setCheatAlertVisible(false)} style={{ backgroundColor: '#6366F1', width: '100%', height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
+          <TouchableOpacity onPress={() => setCheatAlertVisible(false)} style={{ backgroundColor: '#2563EB', width: '100%', height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>반성하고 다시 걷기</Text>
           </TouchableOpacity>
         </View>
@@ -505,26 +505,26 @@ const styles = StyleSheet.create({
     paddingTop: 28,
     paddingBottom: 24,
     paddingHorizontal: 20,
-    shadowColor: '#6366F1',
+    shadowColor: '#2563EB',
     shadowOpacity: 0.04,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
     elevation: 4,
     borderWidth: 1.5,
-    borderColor: '#EEF2F6',
+    borderColor: '#EFF6FF',
   },
   ringOuter: {
     width: 200, height: 200, borderRadius: 100,
     borderWidth: 12, backgroundColor: '#FFFFFF',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#6366F1', shadowOpacity: 0.10, shadowRadius: 18, shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#2563EB', shadowOpacity: 0.10, shadowRadius: 18, shadowOffset: { width: 0, height: 4 },
     elevation: 8, marginBottom: 18,
   },
   ringNum:      { fontSize: 44, fontWeight: '900', color: '#1C1C28', letterSpacing: -1 },
   ringNumGreen: { color: '#16A34A' },
   ringGoal:     { fontSize: 12, color: '#A0A0B0', marginTop: 2, fontWeight: '500' },
   ringPct:      { fontSize: 15, fontWeight: '800', marginTop: 6 },
-  ringPctPink:  { color: '#6366F1' },
+  ringPctPink:  { color: '#2563EB' },
   ringPctGreen: { color: '#16A34A' },
   barBg: { width: '82%', height: 8, backgroundColor: '#EEF2F6', borderRadius: 4, overflow: 'hidden', marginBottom: 10 },
   barFill: { height: '100%', borderRadius: 4 },
@@ -539,13 +539,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
     marginBottom: 16,
-    shadowColor: '#6366F1',
+    shadowColor: '#2563EB',
     shadowOpacity: 0.04,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
     elevation: 4,
     borderWidth: 1.5,
-    borderColor: '#EEF2F6',
+    borderColor: '#EFF6FF',
   },
   levelBadge: { width: '100%', paddingVertical: 10, alignItems: 'center' },
   levelBadgeText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 },
@@ -558,13 +558,13 @@ const styles = StyleSheet.create({
   xpLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   xpLabel: { fontSize: 11, color: '#A4A4B4', fontWeight: '700' },
   maxTag: { marginBottom: 22, backgroundColor: '#EEF2F6', paddingVertical: 6, paddingHorizontal: 20, borderRadius: 12 },
-  maxTagText: { fontSize: 13, fontWeight: '800', color: '#6366F1' },
+  maxTagText: { fontSize: 13, fontWeight: '800', color: '#2563EB' },
 
   /* 액션 */
   actions: { marginHorizontal: 16, marginBottom: 8 },
   btn: {
     borderRadius: 18, height: 54, alignItems: 'center', justifyContent: 'center', width: '100%',
-    shadowColor: '#6366F1', shadowOpacity: 0.10, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#2563EB', shadowOpacity: 0.10, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
   },
   btnDone: { backgroundColor: '#D1FAE5', marginBottom: 0 },
   btnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16, letterSpacing: 0.2 },
@@ -578,13 +578,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 28,
     padding: 20,
-    shadowColor: '#6366F1', shadowOpacity: 0.04, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
+    shadowColor: '#2563EB', shadowOpacity: 0.04, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
     elevation: 4,
-    borderWidth: 1.5, borderColor: '#EEF2F6',
+    borderWidth: 1.5, borderColor: '#EFF6FF',
   },
   duoTitle: { fontSize: 14, fontWeight: '900', color: '#1C1C28' },
-  duoBadge: { backgroundColor: '#F5EFFB', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10 },
-  duoBadgeText: { fontSize: 10, color: '#A78BFA', fontWeight: '800' },
+  duoBadge: { backgroundColor: '#EFF6FF', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10 },
+  duoBadgeText: { fontSize: 10, color: '#2563EB', fontWeight: '800' },
   shieldBadge: { backgroundColor: '#D1FAE5', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20 },
   shieldBadgeText: { fontSize: 12, color: '#065F46', fontWeight: '800' },
 });

@@ -3,6 +3,10 @@ const path = require('path');
 
 const config = getDefaultConfig(__dirname);
 
+// Fix Metro Firebase ESM resolution
+config.resolver.sourceExts.push('cjs');
+config.resolver.unstable_enablePackageExports = false;
+
 // Fix: expo-modules-core@3.x (SDK 54) distributes TypeScript source.
 // Metro web resolver can't find "./polyfill" (a directory) without help.
 const originalResolveRequest = config.resolver.resolveRequest;

@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "YOUR_API_KEY",
@@ -12,12 +13,24 @@ const firebaseConfig = {
 
 let app;
 let db = null;
+let auth = null;
 let isFirebaseActive = false;
+
+// 최초 임의 닉네임 생성기
+export function generateRandomNickname() {
+  const adjs = ['날렵한', '달리는', '씩씩한', '지치지않는', '빛나는', '걸어가는', '에너제틱한', '스마트한'];
+  const nouns = ['호랑이', '토끼', '치타', '펭귄', '거북이', '돼지', '고양이', '사자'];
+  const randAdj = adjs[Math.floor(Math.random() * adjs.length)];
+  const randNoun = nouns[Math.floor(Math.random() * nouns.length)];
+  const randNum = Math.floor(Math.random() * 900) + 100;
+  return `${randAdj}${randNoun}${randNum}`;
+}
 
 try {
   if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     db = getFirestore(app);
+    auth = getAuth(app);
     isFirebaseActive = true;
     console.log("🔥 Firebase initialized successfully!");
   } else {
@@ -45,10 +58,12 @@ const mockDB = {
     shieldActive: false,
     // 스토리 전용 히든 엔딩 열쇠 개수
     storyKeys: 0,
+    // 마지막 랜덤박스 구매일
+    lastRandomBoxDate: '',
   },
   settings: {
     targetSteps: 10000,
-    nickname: '핑키',
+    nickname: '',
     warningContacts: [],
     // 2인 연대책임 듀오 파트너 정보
     duoName: '',
@@ -94,14 +109,28 @@ export async function getAppSettings(userId = "default_user") {
     try {
       const docRef = doc(db, "settings", userId);
       const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) return docSnap.data();
-      const defaultSettings = { ...mockDB.settings };
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (!data.nickname) {
+          const updatedSettings = { ...data, nickname: generateRandomNickname() };
+          await setDoc(docRef, updatedSettings);
+          return updatedSettings;
+        }
+        return data;
+      }
+      const defaultSettings = { 
+        ...mockDB.settings, 
+        nickname: generateRandomNickname() 
+      };
       await setDoc(docRef, defaultSettings);
       return defaultSettings;
     } catch (e) {
       console.error("Firestore getAppSettings error:", e);
-      return { ...mockDB.settings };
+      return { ...mockDB.settings, nickname: generateRandomNickname() };
     }
+  }
+  if (!mockDB.settings.nickname) {
+    mockDB.settings.nickname = generateRandomNickname();
   }
   return { ...mockDB.settings };
 }
@@ -152,4 +181,4 @@ export async function saveStoryHistory(history, userId = "default_user") {
   return true;
 }
 
-export { isFirebaseActive };
+export { isFirebaseActive, auth };

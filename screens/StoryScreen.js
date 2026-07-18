@@ -9,7 +9,7 @@ import { generateNextStorySegment, getRandomTheme, STORY_THEMES } from '../servi
 
 const STEPS_PER_CHAPTER = 1000;
 
-export default function StoryScreen() {
+export default function StoryScreen({ userId = "default_user" }) {
   const [history, setHistory]                   = useState([]);
   const [accumulatedSteps, setAccumulatedSteps] = useState(0);
   const [points, setPoints]                     = useState(0);
@@ -26,12 +26,12 @@ export default function StoryScreen() {
 
   useEffect(() => {
     const load = async () => {
-      const stats    = await getUserStats();
-      const settings = await getAppSettings();
-      const hist     = await getStoryHistory();
+      const stats    = await getUserStats(userId);
+      const settings = await getAppSettings(userId);
+      const hist     = await getStoryHistory(userId);
       setAccumulatedSteps(stats.accumulatedSteps || 0);
       setPoints(stats.points || 0);
-      setNickname(settings.nickname || '핑키');
+      setNickname(settings.nickname || '');
       setHistory(hist);
       setStoryKeys(stats.storyKeys || 0);
       if (hist.length > 0 && hist[0].themeId) {
@@ -41,7 +41,7 @@ export default function StoryScreen() {
       }
     };
     load();
-  }, []);
+  }, [userId]);
 
   const handleUseStoryKey = async () => {
     if (storyKeys <= 0) {
@@ -50,7 +50,7 @@ export default function StoryScreen() {
     }
     const nextKeys = storyKeys - 1;
     setStoryKeys(nextKeys);
-    await updateUserStats({ storyKeys: nextKeys });
+    await updateUserStats({ storyKeys: nextKeys }, userId);
     
     // 히든 스토리 진행
     await handleUnlockNextStory('🔑 (히든) 상상도 못한 정체와 함께 숨겨진 조력자가 나타났다!', 0);
@@ -82,8 +82,8 @@ export default function StoryScreen() {
       };
       updated.push(newItem);
       setHistory(updated);
-      await saveStoryHistory(updated);
-      await updateUserStats({ points: nextPoints });
+      await saveStoryHistory(updated, userId);
+      await updateUserStats({ points: nextPoints }, userId);
     } catch (err) {
       Alert.alert('오류', '스토리를 불러오는 중 에러가 발생했습니다.');
     } finally {
@@ -94,10 +94,10 @@ export default function StoryScreen() {
   const handleResetStory = () => {
     Alert.alert('스토리 초기화', '처음부터 다시 시작하고 테마를 바꿉니다. 진행 내용이 삭제됩니다.',
       [{ text: '취소', style: 'cancel' },
-       { text: '초기화', style: 'destructive', onPress: async () => {
-         const t = getRandomTheme(); setActiveTheme(t); setHistory([]);
-         await saveStoryHistory([]);
-       }}]
+        { text: '초기화', style: 'destructive', onPress: async () => {
+          const t = getRandomTheme(); setActiveTheme(t); setHistory([]);
+          await saveStoryHistory([], userId);
+        }}]
     );
   };
 
@@ -110,7 +110,7 @@ export default function StoryScreen() {
       <LinearGradient colors={['#4C1D95', '#7C3AED']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
         <View style={styles.headerTop}>
           <View>
-            <Text style={styles.headerTitle}>📖 {nickname}의 모험</Text>
+            <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">📖 {nickname}의 모험</Text>
             {theme && (
               <View style={styles.themePill}>
                 <Text style={styles.themeText}>{theme.name}</Text>
@@ -242,7 +242,7 @@ export default function StoryScreen() {
                       style={{ marginBottom: 8 }}
                     >
                       <LinearGradient
-                        colors={['#6366F1', '#8B5CF6']}
+                        colors={['#2563EB', '#06B6D4']}
                         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                         style={styles.optionBtn}
                       >
@@ -291,7 +291,7 @@ export default function StoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAF9FC' },
+  container: { flex: 1, backgroundColor: '#FAFAFC' },
 
   /* 헤더 */
   header: {
@@ -301,20 +301,20 @@ const styles = StyleSheet.create({
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
   headerTitle: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', marginBottom: 6, letterSpacing: -0.4 },
   themePill: { backgroundColor: 'rgba(255,255,255,0.22)', alignSelf: 'flex-start', paddingVertical: 4, paddingHorizontal: 12, borderRadius: 12 },
-  themeText: { fontSize: 11, color: '#F3E8FF', fontWeight: '800' },
+  themeText: { fontSize: 11, color: '#E0F2FE', fontWeight: '800' },
   headerStats: { alignItems: 'flex-end' },
   statChip: { backgroundColor: 'rgba(255,255,255,0.20)', paddingVertical: 5, paddingHorizontal: 12, borderRadius: 14 },
   statChipText: { fontSize: 13, color: '#FFFFFF', fontWeight: '800' },
   resetBtn: { marginTop: 8 },
-  resetText: { fontSize: 11, color: '#DDD6FE', fontWeight: '700' },
+  resetText: { fontSize: 11, color: '#E0F2FE', fontWeight: '700' },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   chapterCountBox: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 16, paddingVertical: 8, paddingHorizontal: 14 },
   chapterCountNum: { fontSize: 22, fontWeight: '900', color: '#FFFFFF' },
-  chapterCountLabel: { fontSize: 10, color: '#DDD6FE', fontWeight: '700' },
+  chapterCountLabel: { fontSize: 10, color: '#E0F2FE', fontWeight: '700' },
   progressBarWrap: { flex: 1 },
   progressBg: { height: 8, backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 4, overflow: 'hidden', marginBottom: 5 },
-  progressFill: { height: '100%', backgroundColor: '#E9D5FF', borderRadius: 4 },
-  progressHint: { fontSize: 11, color: '#DDD6FE', fontWeight: '700' },
+  progressFill: { height: '100%', backgroundColor: '#BAE6FD', borderRadius: 4 },
+  progressHint: { fontSize: 11, color: '#E0F2FE', fontWeight: '700' },
 
   /* 타임라인 */
   timeline: { flex: 1, marginTop: -24 },
@@ -324,14 +324,14 @@ const styles = StyleSheet.create({
   startCard: {
     backgroundColor: '#FFFFFF', borderRadius: 28, padding: 28,
     alignItems: 'center', marginBottom: 20,
-    shadowColor: '#7C3AED', shadowOpacity: 0.05, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
+    shadowColor: '#2563EB', shadowOpacity: 0.05, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
     elevation: 4,
-    borderWidth: 1.5, borderColor: '#F5EFFB',
+    borderWidth: 1.5, borderColor: '#EFF6FF',
   },
   startEmoji: { fontSize: 56, marginBottom: 12 },
   startThemeName: { fontSize: 22, fontWeight: '900', color: '#1C1C28', marginBottom: 6, letterSpacing: -0.5 },
   startThemeDesc: { fontSize: 13, color: '#8A8A9A', textAlign: 'center', lineHeight: 21, marginBottom: 16, fontWeight: '500' },
-  startHint: { fontSize: 13, color: '#7C3AED', fontWeight: '700', marginBottom: 20, textAlign: 'center', letterSpacing: -0.2 },
+  startHint: { fontSize: 13, color: '#2563EB', fontWeight: '700', marginBottom: 20, textAlign: 'center', letterSpacing: -0.2 },
   startBtn: { borderRadius: 18, paddingVertical: 14, paddingHorizontal: 38 },
   startBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16 },
 
@@ -339,36 +339,36 @@ const styles = StyleSheet.create({
   chapterCard: { flexDirection: 'row', marginBottom: 6, paddingLeft: 8 },
   timelineLine: {
     position: 'absolute', left: 28, top: 32, bottom: -20,
-    width: 2.5, backgroundColor: '#F0EAFB',
+    width: 2.5, backgroundColor: '#EFF6FF',
   },
   chapterNode: {
     width: 36, height: 36, borderRadius: 18,
     alignItems: 'center', justifyContent: 'center',
     marginRight: 12, marginTop: 0, flexShrink: 0,
-    shadowColor: '#7C3AED', shadowOpacity: 0.14, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    shadowColor: '#2563EB', shadowOpacity: 0.14, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
     elevation: 4,
   },
   chapterNodeText: { color: '#FFFFFF', fontWeight: '900', fontSize: 14 },
   chapterBody: {
     flex: 1, backgroundColor: '#FFFFFF', borderRadius: 24,
     padding: 20, marginBottom: 16,
-    shadowColor: '#7C3AED', shadowOpacity: 0.04, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
+    shadowColor: '#2563EB', shadowOpacity: 0.04, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
     elevation: 3,
-    borderWidth: 1.5, borderColor: '#F5EFFB',
+    borderWidth: 1.5, borderColor: '#EFF6FF',
   },
-  chapterLabel: { fontSize: 11, fontWeight: '800', color: '#A78BFA', marginBottom: 10, letterSpacing: 0.8, textTransform: 'uppercase' },
+  chapterLabel: { fontSize: 11, fontWeight: '800', color: '#60A5FA', marginBottom: 10, letterSpacing: 0.8, textTransform: 'uppercase' },
   storyText: { fontSize: 15, lineHeight: 28, color: '#2D2D3A', fontWeight: '500' },
 
   /* 선택 표시 */
   choiceBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    marginTop: 16, backgroundColor: '#F5EFFB', borderRadius: 12, padding: 12,
+    marginTop: 16, backgroundColor: '#EFF6FF', borderRadius: 12, padding: 12,
   },
-  choiceArrow: { fontSize: 16, color: '#7C3AED', fontWeight: '900' },
-  choiceText: { flex: 1, fontSize: 13, color: '#5B21B6', fontWeight: '700', lineHeight: 20 },
+  choiceArrow: { fontSize: 16, color: '#2563EB', fontWeight: '900' },
+  choiceText: { flex: 1, fontSize: 13, color: '#1E40AF', fontWeight: '700', lineHeight: 20 },
 
   /* 선택지 */
-  optionsBox: { marginTop: 18, borderTopWidth: 1.5, borderTopColor: '#F5EFFB', paddingTop: 16 },
+  optionsBox: { marginTop: 18, borderTopWidth: 1.5, borderTopColor: '#EFF6FF', paddingTop: 16 },
   optionHint: { fontSize: 12, color: '#A4A4B4', marginBottom: 12, fontWeight: '700', letterSpacing: 0.2 },
   optionBtn: { borderRadius: 16, paddingVertical: 14, paddingHorizontal: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   optionText: { fontSize: 14, color: '#FFFFFF', fontWeight: '800', flex: 1, lineHeight: 19 },
@@ -383,15 +383,15 @@ const styles = StyleSheet.create({
   nextPanel: { marginTop: 4, marginBottom: 10 },
   nextBtn: {
     borderRadius: 18, height: 54, alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#7C3AED', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#2563EB', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
   },
   nextBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16, letterSpacing: 0.2 },
   lockedCard: {
     backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, alignItems: 'center',
-    borderWidth: 1.5, borderColor: '#F0EAFB', borderStyle: 'dashed',
+    borderWidth: 1.5, borderColor: '#EFF6FF', borderStyle: 'dashed',
   },
   lockedIcon: { fontSize: 32, marginBottom: 10 },
   lockedTitle: { fontSize: 16, fontWeight: '900', color: '#6B6B80', marginBottom: 5, letterSpacing: -0.3 },
-  lockedDesc: { fontSize: 13, color: '#FF4D80', fontWeight: '700' },
+  lockedDesc: { fontSize: 13, color: '#2563EB', fontWeight: '700' },
 
 });
