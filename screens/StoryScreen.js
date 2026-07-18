@@ -242,98 +242,107 @@ export default function StoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F4FF' },
+  container: { flex: 1, backgroundColor: '#FAF9FC' },
 
   /* 헤더 */
-  header: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 18 },
+  header: {
+    paddingHorizontal: 22, paddingTop: 20, paddingBottom: 42,
+    borderBottomLeftRadius: 32, borderBottomRightRadius: 32,
+  },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: '#FFFFFF', marginBottom: 6 },
-  themePill: { backgroundColor: 'rgba(255,255,255,0.20)', alignSelf: 'flex-start', paddingVertical: 3, paddingHorizontal: 10, borderRadius: 10 },
-  themeText: { fontSize: 11, color: '#E9D5FF', fontWeight: '700' },
+  headerTitle: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', marginBottom: 6, letterSpacing: -0.4 },
+  themePill: { backgroundColor: 'rgba(255,255,255,0.22)', alignSelf: 'flex-start', paddingVertical: 4, paddingHorizontal: 12, borderRadius: 12 },
+  themeText: { fontSize: 11, color: '#F3E8FF', fontWeight: '800' },
   headerStats: { alignItems: 'flex-end' },
-  statChip: { backgroundColor: 'rgba(255,255,255,0.18)', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10 },
-  statChipText: { fontSize: 12, color: '#FFFFFF', fontWeight: '700' },
+  statChip: { backgroundColor: 'rgba(255,255,255,0.20)', paddingVertical: 5, paddingHorizontal: 12, borderRadius: 14 },
+  statChipText: { fontSize: 13, color: '#FFFFFF', fontWeight: '800' },
   resetBtn: { marginTop: 8 },
-  resetText: { fontSize: 11, color: '#C4B5FD', fontWeight: '700' },
+  resetText: { fontSize: 11, color: '#DDD6FE', fontWeight: '700' },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  chapterCountBox: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 14 },
+  chapterCountBox: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 16, paddingVertical: 8, paddingHorizontal: 14 },
   chapterCountNum: { fontSize: 22, fontWeight: '900', color: '#FFFFFF' },
-  chapterCountLabel: { fontSize: 10, color: '#C4B5FD', fontWeight: '600' },
+  chapterCountLabel: { fontSize: 10, color: '#DDD6FE', fontWeight: '700' },
   progressBarWrap: { flex: 1 },
-  progressBg: { height: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 4, overflow: 'hidden', marginBottom: 5 },
+  progressBg: { height: 8, backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 4, overflow: 'hidden', marginBottom: 5 },
   progressFill: { height: '100%', backgroundColor: '#E9D5FF', borderRadius: 4 },
-  progressHint: { fontSize: 11, color: '#C4B5FD', fontWeight: '600' },
+  progressHint: { fontSize: 11, color: '#DDD6FE', fontWeight: '700' },
 
   /* 타임라인 */
-  timeline: { flex: 1 },
-  timelineContent: { paddingVertical: 20, paddingHorizontal: 16, paddingBottom: 40 },
+  timeline: { flex: 1, marginTop: -24 },
+  timelineContent: { paddingVertical: 20, paddingHorizontal: 16, paddingBottom: 120 },
 
   /* 시작 카드 */
   startCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 22, padding: 28,
+    backgroundColor: '#FFFFFF', borderRadius: 28, padding: 28,
     alignItems: 'center', marginBottom: 20,
-    shadowColor: '#7C3AED', shadowOpacity: 0.10, shadowRadius: 14, shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
+    shadowColor: '#7C3AED', shadowOpacity: 0.05, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+    borderWidth: 1.5, borderColor: '#F5EFFB',
   },
-  startEmoji: { fontSize: 52, marginBottom: 10 },
-  startThemeName: { fontSize: 20, fontWeight: '800', color: '#1C1C28', marginBottom: 6 },
-  startThemeDesc: { fontSize: 13, color: '#9B9BAA', textAlign: 'center', lineHeight: 20, marginBottom: 14 },
-  startHint: { fontSize: 12, color: '#7C3AED', fontWeight: '600', marginBottom: 18, textAlign: 'center' },
-  startBtn: { borderRadius: 14, paddingVertical: 13, paddingHorizontal: 36 },
-  startBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
+  startEmoji: { fontSize: 56, marginBottom: 12 },
+  startThemeName: { fontSize: 22, fontWeight: '900', color: '#1C1C28', marginBottom: 6, letterSpacing: -0.5 },
+  startThemeDesc: { fontSize: 13, color: '#8A8A9A', textAlign: 'center', lineHeight: 21, marginBottom: 16, fontWeight: '500' },
+  startHint: { fontSize: 13, color: '#7C3AED', fontWeight: '700', marginBottom: 20, textAlign: 'center', letterSpacing: -0.2 },
+  startBtn: { borderRadius: 18, paddingVertical: 14, paddingHorizontal: 38 },
+  startBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16 },
 
   /* 챕터 카드 */
   chapterCard: { flexDirection: 'row', marginBottom: 6, paddingLeft: 8 },
   timelineLine: {
     position: 'absolute', left: 28, top: 32, bottom: -20,
-    width: 2, backgroundColor: '#E9D5FF',
+    width: 2.5, backgroundColor: '#F0EAFB',
   },
   chapterNode: {
     width: 36, height: 36, borderRadius: 18,
     alignItems: 'center', justifyContent: 'center',
     marginRight: 12, marginTop: 0, flexShrink: 0,
-    shadowColor: '#7C3AED', shadowOpacity: 0.30, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    shadowColor: '#7C3AED', shadowOpacity: 0.14, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
     elevation: 4,
   },
-  chapterNodeText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
+  chapterNodeText: { color: '#FFFFFF', fontWeight: '900', fontSize: 14 },
   chapterBody: {
-    flex: 1, backgroundColor: '#FFFFFF', borderRadius: 18,
-    padding: 18, marginBottom: 16,
-    shadowColor: '#7C3AED', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 3 },
+    flex: 1, backgroundColor: '#FFFFFF', borderRadius: 24,
+    padding: 20, marginBottom: 16,
+    shadowColor: '#7C3AED', shadowOpacity: 0.04, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
     elevation: 3,
+    borderWidth: 1.5, borderColor: '#F5EFFB',
   },
-  chapterLabel: { fontSize: 11, fontWeight: '700', color: '#A78BFA', marginBottom: 10, letterSpacing: 0.5, textTransform: 'uppercase' },
-  storyText: { fontSize: 15, lineHeight: 27, color: '#2D2D3A' },
+  chapterLabel: { fontSize: 11, fontWeight: '800', color: '#A78BFA', marginBottom: 10, letterSpacing: 0.8, textTransform: 'uppercase' },
+  storyText: { fontSize: 15, lineHeight: 28, color: '#2D2D3A', fontWeight: '500' },
 
   /* 선택 표시 */
   choiceBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    marginTop: 14, backgroundColor: '#F3F0FF', borderRadius: 10, padding: 12,
+    marginTop: 16, backgroundColor: '#F5EFFB', borderRadius: 12, padding: 12,
   },
-  choiceArrow: { fontSize: 16, color: '#7C3AED', fontWeight: '800' },
-  choiceText: { flex: 1, fontSize: 13, color: '#4C1D95', fontWeight: '600', lineHeight: 19 },
+  choiceArrow: { fontSize: 16, color: '#7C3AED', fontWeight: '900' },
+  choiceText: { flex: 1, fontSize: 13, color: '#5B21B6', fontWeight: '700', lineHeight: 20 },
 
   /* 선택지 */
-  optionsBox: { marginTop: 18, borderTopWidth: 1, borderTopColor: '#F3F0FF', paddingTop: 14 },
-  optionHint: { fontSize: 12, color: '#B0B0BC', marginBottom: 10, fontWeight: '600' },
-  optionBtn: { borderRadius: 13, paddingVertical: 13, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  optionText: { fontSize: 13, color: '#FFFFFF', fontWeight: '700', flex: 1, lineHeight: 18 },
-  optionCostChip: { backgroundColor: 'rgba(255,255,255,0.25)', paddingVertical: 3, paddingHorizontal: 8, borderRadius: 8, marginLeft: 8 },
-  optionCostText: { fontSize: 11, color: '#FFFFFF', fontWeight: '700' },
+  optionsBox: { marginTop: 18, borderTopWidth: 1.5, borderTopColor: '#F5EFFB', paddingTop: 16 },
+  optionHint: { fontSize: 12, color: '#A4A4B4', marginBottom: 12, fontWeight: '700', letterSpacing: 0.2 },
+  optionBtn: { borderRadius: 16, paddingVertical: 14, paddingHorizontal: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  optionText: { fontSize: 14, color: '#FFFFFF', fontWeight: '800', flex: 1, lineHeight: 19 },
+  optionCostChip: { backgroundColor: 'rgba(255,255,255,0.22)', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10, marginLeft: 8 },
+  optionCostText: { fontSize: 11, color: '#FFFFFF', fontWeight: '800' },
 
   /* 로딩 */
   loadingBox: { alignItems: 'center', paddingVertical: 32 },
-  loadingText: { fontSize: 13, color: '#9B9BAA', marginTop: 12, fontWeight: '500' },
+  loadingText: { fontSize: 13, color: '#A4A4B4', marginTop: 12, fontWeight: '600' },
 
   /* 다음 챕터 */
   nextPanel: { marginTop: 4, marginBottom: 10 },
-  nextBtn: { borderRadius: 16, height: 52, alignItems: 'center', justifyContent: 'center' },
-  nextBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
-  lockedCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 18, padding: 22, alignItems: 'center',
-    borderWidth: 1.5, borderColor: '#E9ECEF', borderStyle: 'dashed',
+  nextBtn: {
+    borderRadius: 18, height: 54, alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#7C3AED', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
   },
-  lockedIcon: { fontSize: 28, marginBottom: 8 },
-  lockedTitle: { fontSize: 15, fontWeight: '800', color: '#6B6B80', marginBottom: 4 },
-  lockedDesc: { fontSize: 13, color: '#FF4D80', fontWeight: '600' },
+  nextBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16, letterSpacing: 0.2 },
+  lockedCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, alignItems: 'center',
+    borderWidth: 1.5, borderColor: '#F0EAFB', borderStyle: 'dashed',
+  },
+  lockedIcon: { fontSize: 32, marginBottom: 10 },
+  lockedTitle: { fontSize: 16, fontWeight: '900', color: '#6B6B80', marginBottom: 5, letterSpacing: -0.3 },
+  lockedDesc: { fontSize: 13, color: '#FF4D80', fontWeight: '700' },
+
 });

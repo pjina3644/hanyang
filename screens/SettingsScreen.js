@@ -89,7 +89,7 @@ export default function SettingsScreen() {
       </LinearGradient>
 
       {/* ─── 닉네임 ─── */}
-      <View style={styles.section}>
+      <View style={[styles.section, styles.sectionFirst]}>
         <Text style={styles.sectionTitle}>👤 내 닉네임</Text>
         <Text style={styles.sectionDesc}>설정한 이름으로 캐릭터명이 자동 변경됩니다.</Text>
         <View style={styles.nicknameRow}>
@@ -194,78 +194,89 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: '#FFF5F7' },
-  container: { paddingBottom: 40 },
+  scroll: { flex: 1, backgroundColor: '#FAFAFC' },
+  container: { paddingBottom: 120 },
 
   /* 배너 */
-  banner: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 22 },
-  bannerTitle: { fontSize: 22, fontWeight: '900', color: '#FFFFFF', marginBottom: 14 },
-  bannerPreviewBox: { backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 14, padding: 14 },
-  bannerPreviewLabel: { fontSize: 11, color: 'rgba(255,255,255,0.75)', fontWeight: '600', marginBottom: 4 },
-  bannerPreviewText: { fontSize: 13, color: '#FFFFFF', fontWeight: '700', lineHeight: 20 },
+  banner: {
+    paddingHorizontal: 22, paddingTop: 20, paddingBottom: 42,
+    borderBottomLeftRadius: 32, borderBottomRightRadius: 32,
+  },
+  bannerTitle: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', marginBottom: 14, letterSpacing: -0.4 },
+  bannerPreviewBox: { backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 16, padding: 14 },
+  bannerPreviewLabel: { fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: '700', marginBottom: 4, letterSpacing: 0.2 },
+  bannerPreviewText: { fontSize: 13, color: '#FFFFFF', fontWeight: '800', lineHeight: 20 },
 
   /* 섹션 */
   section: {
     marginHorizontal: 16, marginTop: 16,
-    backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20,
-    shadowColor: '#FF4D80', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
+    backgroundColor: '#FFFFFF', borderRadius: 28, padding: 22,
+    shadowColor: '#FF4D80', shadowOpacity: 0.04, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
     elevation: 4,
+    borderWidth: 1.5, borderColor: '#FFF0F3',
   },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#1C1C28', marginBottom: 4 },
-  sectionDesc:  { fontSize: 12, color: '#9B9BAA', lineHeight: 17, marginBottom: 16 },
+  sectionFirst: {
+    marginTop: -24,
+  },
+  sectionTitle: { fontSize: 15, fontWeight: '900', color: '#1C1C28', marginBottom: 4 },
+  sectionDesc:  { fontSize: 12, color: '#8A8A9A', lineHeight: 18, marginBottom: 16, fontWeight: '500' },
 
   /* 닉네임 */
   nicknameRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   input: {
-    flex: 1, height: 46, borderWidth: 1.5, borderColor: '#FFE4EC',
-    borderRadius: 12, paddingHorizontal: 14, fontSize: 14,
-    color: '#1C1C28', backgroundColor: '#FFF5F7',
+    flex: 1, height: 48, borderWidth: 1.5, borderColor: '#FFE4EC',
+    borderRadius: 14, paddingHorizontal: 14, fontSize: 14,
+    color: '#1C1C28', backgroundColor: '#FAFAFC',
   },
-  saveBtn: { height: 46, paddingHorizontal: 18, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  saveBtn: { height: 48, paddingHorizontal: 22, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   saveBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
 
   /* 목표 걸음수 */
   presetRow: { flexDirection: 'row', gap: 8 },
   presetBtn: {
-    flex: 1, height: 52, borderRadius: 14,
+    flex: 1, height: 54, borderRadius: 16,
     alignItems: 'center', justifyContent: 'center',
   },
-  presetBtnInactive: { backgroundColor: '#FFF5F7', borderWidth: 1.5, borderColor: '#FFE4EC' },
-  presetText:       { fontSize: 15, fontWeight: '700', color: '#9B9BAA' },
-  presetUnit:       { fontSize: 11, color: '#C0C0D0', fontWeight: '500' },
-  presetTextActive: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
-  presetUnitActive: { fontSize: 11, color: 'rgba(255,255,255,0.75)', fontWeight: '600' },
+  presetBtnInactive: { backgroundColor: '#FAFAFC', borderWidth: 1.5, borderColor: '#FFE4EC' },
+  presetText:       { fontSize: 15, fontWeight: '800', color: '#A4A4B4' },
+  presetUnit:       { fontSize: 11, color: '#B4B4C4', fontWeight: '600' },
+  presetTextActive: { fontSize: 15, fontWeight: '900', color: '#FFFFFF' },
+  presetUnitActive: { fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: '700' },
 
   /* 연락처 추가 폼 */
   addForm: { marginBottom: 18 },
-  formLabel: { fontSize: 12, fontWeight: '700', color: '#9B9BAA', marginBottom: 8 },
+  formLabel: { fontSize: 12, fontWeight: '800', color: '#8A8A9A', marginBottom: 8 },
   formRow: { flexDirection: 'row', gap: 7, alignItems: 'center' },
-  inputName:  { flex: 0.28, height: 44 },
-  inputPhone: { flex: 0.48, height: 44 },
-  addBtn: { height: 44, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  inputName:  { flex: 0.28, height: 46 },
+  inputPhone: { flex: 0.48, height: 46 },
+  addBtn: { height: 46, paddingHorizontal: 16, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   addBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
 
   /* 목록 */
-  listHeader: { fontSize: 13, fontWeight: '700', color: '#6B6B80', marginBottom: 12 },
-  emptyBox: { alignItems: 'center', paddingVertical: 24, backgroundColor: '#FFF5F7', borderRadius: 14 },
-  emptyIcon: { fontSize: 30, marginBottom: 8 },
-  emptyText: { fontSize: 14, fontWeight: '700', color: '#9B9BAA', marginBottom: 3 },
-  emptySubText: { fontSize: 12, color: '#C0C0D0' },
+  listHeader: { fontSize: 13, fontWeight: '800', color: '#6B6B80', marginBottom: 12, letterSpacing: -0.2 },
+  emptyBox: {
+    alignItems: 'center', paddingVertical: 26, backgroundColor: '#FAFAFC', borderRadius: 16,
+    borderWidth: 1.5, borderColor: '#FFEBF0', borderStyle: 'dashed',
+  },
+  emptyIcon: { fontSize: 32, marginBottom: 8 },
+  emptyText: { fontSize: 14, fontWeight: '800', color: '#8A8A9A', marginBottom: 3 },
+  emptySubText: { fontSize: 12, color: '#B4B4C4', fontWeight: '600' },
 
   contactItem: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#FFF5F7',
+    paddingVertical: 14, borderBottomWidth: 1.5, borderBottomColor: '#FAFAFC',
   },
   avatar: {
-    width: 42, height: 42, borderRadius: 21,
+    width: 44, height: 44, borderRadius: 22,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOpacity: 0.10, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  avatarText: { fontSize: 17, fontWeight: '800', color: '#FFFFFF' },
+  avatarText: { fontSize: 18, fontWeight: '900', color: '#FFFFFF' },
   contactInfo: { flex: 1 },
-  contactName: { fontSize: 14, fontWeight: '700', color: '#1C1C28' },
-  contactPhone: { fontSize: 12, color: '#9B9BAA', marginTop: 2 },
-  deleteBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#FFF0F3', borderWidth: 1, borderColor: '#FFE4EC' },
-  deleteBtnText: { fontSize: 12, color: '#EF4444', fontWeight: '700' },
+  contactName: { fontSize: 14, fontWeight: '800', color: '#1C1C28' },
+  contactPhone: { fontSize: 12, color: '#8A8A9A', marginTop: 2, fontWeight: '500' },
+  deleteBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: '#FFF0F3', borderWidth: 1, borderColor: '#FFE4EC' },
+  deleteBtnText: { fontSize: 12, color: '#EF4444', fontWeight: '800' },
 });
+
