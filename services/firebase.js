@@ -41,11 +41,16 @@ const mockDB = {
     storyTheme: null,
     // 마지막 일일 초기화 날짜 (자정 리셋용)
     lastResetDate: '',
+    // 하루 벌칙 방지 실드 상태
+    shieldActive: false,
   },
   settings: {
     targetSteps: 10000,
     nickname: '핑키',
     warningContacts: [],
+    // 2인 연대책임 듀오 파트너 정보
+    duoName: '',
+    duoPhone: '',
   },
   storyHistory: [],
 };

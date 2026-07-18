@@ -12,7 +12,7 @@ const WARNING_MESSAGES = [
  * @param {Array<string | {name:string, phone:string}>} contacts - 전화번호 문자열 또는 연락처 객체 배열
  * @returns {Promise<boolean>}
  */
-export async function sendRandomWarningSMS(contacts) {
+export async function sendRandomWarningSMS(contacts, customMessage = null) {
   try {
     if (!contacts || contacts.length === 0) {
       console.warn('No contacts registered for warning SMS.');
@@ -41,7 +41,7 @@ export async function sendRandomWarningSMS(contacts) {
     }
 
     const targetPhone = phoneNumbers[Math.floor(Math.random() * phoneNumbers.length)];
-    const message = WARNING_MESSAGES[Math.floor(Math.random() * WARNING_MESSAGES.length)];
+    const message = customMessage || WARNING_MESSAGES[Math.floor(Math.random() * WARNING_MESSAGES.length)];
 
     const { result } = await SMS.sendSMSAsync([targetPhone], message);
     console.log('SMS 발송 시도 결과:', result);

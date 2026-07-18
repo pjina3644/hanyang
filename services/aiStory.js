@@ -192,7 +192,7 @@ ${historyText}
   }
 
   // 3. 둘 다 실패하거나 키가 없으면 오프라인 백업을 사용합니다.
-  const themeStories = OFFLINE_STORIES[activeTheme.id] || OFFLINE_STORIES['zombie'];
+  const themeStories = OFFLINE_STORIES[activeTheme.id] || OFFLINE_STORIES['idol'];
   const branch = themeStories[0];
   return {
     content: branch.content.replace('{steps}', currentSteps.toLocaleString()).replace(/주인공/g, nickname),
@@ -200,3 +200,67 @@ ${historyText}
     themeId: activeTheme.id,
   };
 }
+
+export async function generateAIPenaltySMS(currentSteps = 0, nickname = '주인공', theme = null, duoName = null) {
+  const activeTheme = theme || STORY_THEMES[0];
+  const duoContext = duoName ? `(참고: ${duoName}과 2인 연대책임 듀오 상태로 함께 실패함)` : "";
+  const prompt = `
+역할: 너는 10대들이 좋아하는 유머러스하고 킹받는 감성의 한국 웹소설 작가야.
+상황: 주인공 '${nickname}'이 오늘 목표 걸음수를 달성하지 못해서 친구에게 보내는 반성 사죄 문자메시지를 작성해야 해.
+오늘 걸음수: ${currentSteps.toLocaleString()}보
+선택한 테마: ${activeTheme.name}
+${duoContext}
+
+지침:
+1. 친구가 읽자마자 빵 터지거나 킹받을 정도로 처절하고 유머러스한 어조로 작성해줘.
+2. 10대 고등학생/대학생 유행어나 억울한 감성을 담아줘.
+3. 오늘 걸음수(${currentSteps.toLocaleString()}보)와 닉네임(${nickname}), 그리고 테마(${activeTheme.name})의 컨셉을 문장에 아주 자연스럽게 한 번 녹여줘. (예: 드라마 빙의했는데 주인공이 300보 걷다가 기절했다는 식)
+4. 공백 포함 90자 내외(SMS 한 통 분량)로 짧고 강력하게 단 한 줄(혹은 두 줄)로만 작성해줘. 마크다운이나 따옴표 등 일체의 부가 텍스트 없이 오직 문자메시지 본문 텍스트만 출력해줘.
+`;
+
+  // 1. Gemini API 키가 있으면 Gemini를 사용합니다.
+  if (GEMINI_API_KEY) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      });
+      const data = await response.json();
+      const txt = data.candidates[0].content.parts[0].text.trim();
+      return txt.replace(/["']/g, ''); // 따옴표 제거
+    } catch (e) {
+      console.error("Gemini SMS generation failed:", e);
+    }
+  }
+
+  // 2. OpenRouter API 키가 있으면 OpenRouter를 사용합니다 (Gemma 2 모델).
+  if (OPENROUTER_API_KEY) {
+    try {
+      const url = "https://openrouter.ai/api/v1/chat/completions";
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'HTTP-Referer': 'https://github.com/pjina3644/hanyang',
+          'X-Title': 'Pinky Fitness'
+        },
+        body: JSON.stringify({
+          model: "google/gemma-2-9b-it:free",
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+      const data = await response.json();
+      const txt = data.choices[0].message.content.trim();
+      return txt.replace(/["']/g, '');
+    } catch (e) {
+      console.error("OpenRouter SMS generation failed:", e);
+    }
+  }
+
+  // 로컬 폴백
+  return `📢 [걸음수 실패] ${nickname}이가 오늘 ${activeTheme.name} 세계관에서 단 ${currentSteps.toLocaleString()}보만 걷고 게으름을 부렸습니다. 저 대신 혼내주세요! 🐷`;
+}
+

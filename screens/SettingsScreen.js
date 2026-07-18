@@ -4,7 +4,7 @@ import {
   ScrollView, Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getAppSettings, saveAppSettings } from '../services/firebase';
+import { getAppSettings, saveAppSettings, getUserStats, updateUserStats } from '../services/firebase';
 
 function getCharPreview(nickname) {
   const n = nickname || '핑키';
@@ -30,12 +30,28 @@ export default function SettingsScreen() {
   const [manualName,    setManualName]    = useState('');
   const [manualPhone,   setManualPhone]   = useState('');
 
+  // 포인트 샵 및 듀오 정보 상태
+  const [points,        setPoints]        = useState(0);
+  const [shieldActive,  setShieldActive]  = useState(false);
+  const [duoName,       setDuoName]       = useState('');
+  const [duoPhone,      setDuoPhone]      = useState('');
+  const [duoNameInput,  setDuoNameInput]  = useState('');
+  const [duoPhoneInput, setDuoPhoneInput] = useState('');
+
   useEffect(() => {
     getAppSettings().then(s => {
       setTargetSteps(s.targetSteps || 10000);
       setNickname(s.nickname || '핑키');
       setNicknameInput(s.nickname || '핑키');
       setContactsList(s.warningContacts || []);
+      setDuoName(s.duoName || '');
+      setDuoNameInput(s.duoName || '');
+      setDuoPhone(s.duoPhone || '');
+      setDuoPhoneInput(s.duoPhone || '');
+    });
+    getUserStats().then(u => {
+      setPoints(u.points || 0);
+      setShieldActive(u.shieldActive || false);
     });
   }, []);
 
@@ -72,6 +88,47 @@ export default function SettingsScreen() {
     const updated = contactsList.filter(c => c.phone !== phone);
     setContactsList(updated);
     await saveAppSettings({ warningContacts: updated });
+  };
+
+  // 실드 구매 처리
+  const handleBuyShield = async () => {
+    if (shieldActive) {
+      Alert.alert('이미 보유 중', '이미 오늘 활성화된 벌칙 방지 실드가 있습니다!');
+      return;
+    }
+    if (points < 100) {
+      Alert.alert('포인트 부족', '실드를 구매하려면 100 포인트가 필요합니다.');
+      return;
+    }
+    const newPoints = points - 100;
+    setPoints(newPoints);
+    setShieldActive(true);
+    await updateUserStats({ points: newPoints, shieldActive: true });
+    Alert.alert('구매 성공', '🛡️ 하루 벌칙 방지 실드를 구매하여 오늘 하루 동안 페널티가 면제됩니다!');
+  };
+
+  // 듀오 연동 등록
+  const handleSaveDuo = async () => {
+    const trimmedName = duoNameInput.trim();
+    const trimmedPhone = duoPhoneInput.trim();
+    if (!trimmedName || !trimmedPhone) {
+      Alert.alert('입력 오류', '듀오 파트너의 이름과 번호를 모두 입력해 주세요.');
+      return;
+    }
+    setDuoName(trimmedName);
+    setDuoPhone(trimmedPhone);
+    await saveAppSettings({ duoName: trimmedName, duoPhone: trimmedPhone });
+    Alert.alert('연동 완료', `👥 [${trimmedName}] 님과 2인 연대책임 듀오 챌린지를 시작합니다!`);
+  };
+
+  // 듀오 연동 해제
+  const handleRemoveDuo = async () => {
+    setDuoName('');
+    setDuoPhone('');
+    setDuoNameInput('');
+    setDuoPhoneInput('');
+    await saveAppSettings({ duoName: '', duoPhone: '' });
+    Alert.alert('연동 해제', '듀오 챌린지 연동을 해제했습니다.');
   };
 
   return (
@@ -131,6 +188,75 @@ export default function SettingsScreen() {
             );
           })}
         </View>
+      </View>
+
+      {/* ─── 🛒 포인트 상점 ─── */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>🛒 포인트 상점</Text>
+        <Text style={styles.sectionDesc}>걷기로 모은 포인트로 꿀 아이템을 교환해 보세요.</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FAFAFC', padding: 16, borderRadius: 16, borderWidth: 1.5, borderColor: '#FFEBF0' }}>
+          <View>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: '#1C1C28' }}>🛡️ 하루 벌칙 방지 실드</Text>
+            <Text style={{ fontSize: 11, color: '#FF4D80', marginTop: 4, fontWeight: '700' }}>비용: 100 P (보유: {points} P)</Text>
+          </View>
+          {shieldActive ? (
+            <View style={{ backgroundColor: '#D1FAE5', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12 }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#065F46' }}>🛡️ 작동 중</Text>
+            </View>
+          ) : (
+            <TouchableOpacity onPress={handleBuyShield} activeOpacity={0.85}>
+              <LinearGradient colors={['#FF4D80', '#FF8FB1']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12 }}>
+                <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>구매하기</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* ─── 👥 2인 연대책임 듀오 챌린지 ─── */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>👥 2인 연대책임 듀오 챌린지</Text>
+        <Text style={styles.sectionDesc}>친구와 듀오가 되어 같이 걸으세요! 둘 중 하나라도 낙오 시 등록된 친구의 폰으로도 페널티 문자가 전송됩니다.</Text>
+        
+        {duoName ? (
+          <View style={{ backgroundColor: '#F5EFFB', padding: 16, borderRadius: 16, borderWidth: 1.5, borderColor: '#F5EFFB' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <Text style={{ fontSize: 24 }}>👥</Text>
+              <View>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: '#1C1C28' }}>{duoName} 님과 연동 중</Text>
+                <Text style={{ fontSize: 12, color: '#A78BFA', marginTop: 2, fontWeight: '600' }}>{duoPhone}</Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={handleRemoveDuo} activeOpacity={0.85} style={{ backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#FFE4EC', height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 13, color: '#EF4444', fontWeight: '800' }}>듀오 챌린지 끊기</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={{ gap: 8 }}>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TextInput
+                style={[styles.input, { flex: 0.35 }]}
+                placeholder="친구 이름"
+                placeholderTextColor="#C0C0D0"
+                value={duoNameInput}
+                onChangeText={setDuoNameInput}
+              />
+              <TextInput
+                style={[styles.input, { flex: 0.65 }]}
+                placeholder="친구 번호"
+                placeholderTextColor="#C0C0D0"
+                keyboardType="phone-pad"
+                value={duoPhoneInput}
+                onChangeText={setDuoPhoneInput}
+              />
+            </View>
+            <TouchableOpacity onPress={handleSaveDuo} activeOpacity={0.85}>
+              <LinearGradient colors={['#7C3AED', '#A78BFA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>듀오 챌린지 시작하기</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* ─── 경고 연락처 ─── */}

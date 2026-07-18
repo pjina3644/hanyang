@@ -7,6 +7,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { checkPedometerAvailability, startStepCountSubscription, getStepCountRange } from '../services/pedometer';
 import { getUserStats, updateUserStats, getAppSettings } from '../services/firebase';
 import { sendRandomWarningSMS } from '../services/smsAlert';
+import { Accelerometer } from 'expo-sensors';
+import { generateAIPenaltySMS } from '../services/aiStory';
 
 const CHAR_IMAGES = [
   require('../assets/char_level0.png'),
@@ -42,12 +44,21 @@ export default function HomeScreen() {
   const [isPedometerAvailable, setIsPedometerAvailable] = useState(false);
   const [isLoading, setIsLoading]                   = useState(true);
 
+  // 포인트 상점, 듀오 챌린지 및 꼼수 방지 관련 상태
+  const [isGeneratingSMS, setIsGeneratingSMS]       = useState(false);
+  const [cheatAlertVisible, setCheatAlertVisible]   = useState(false);
+  const [duoName, setDuoName]                       = useState('');
+  const [duoPhone, setDuoPhone]                     = useState('');
+  const [duoSteps, setDuoSteps]                     = useState(0);
+  const [shieldActive, setShieldActive]             = useState(false);
+
   const baseStepsRef      = useRef(0);
   const lastTotalRef      = useRef(0);
   const pedometerSub      = useRef(null);
   const goalAlertShownRef = useRef(false);
   const accRef            = useRef(0);
   const pointsRef         = useRef(100);
+  const isCheatingRef      = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -61,12 +72,18 @@ export default function HomeScreen() {
       const savedPoints    = stats.points            || 100;
       const savedAchieve   = stats.dailyGoalAchievements || 0;
       const savedAcc       = stats.accumulatedSteps  || 0;
+      const savedDuoName   = settings.duoName        || '';
+      const savedDuoPhone  = settings.duoPhone       || '';
+      const savedShield    = stats.shieldActive      || false;
 
       setNickname(savedNickname);
       setTargetSteps(savedTarget);
       setContacts(savedContacts);
       setPoints(savedPoints);
       setDailyGoalAchievements(savedAchieve);
+      setDuoName(savedDuoName);
+      setDuoPhone(savedDuoPhone);
+      setShieldActive(savedShield);
       pointsRef.current = savedPoints;
       accRef.current    = savedAcc;
 
@@ -78,7 +95,9 @@ export default function HomeScreen() {
         todaySteps    = 0;
         todayAchieved = false;
         goalAlertShownRef.current = false;
-        await updateUserStats({ todaySteps: 0, todayGoalAchieved: false, lastResetDate: today });
+        // 하루가 지나면 실드도 같이 자동 리셋 처리
+        await updateUserStats({ todaySteps: 0, todayGoalAchieved: false, lastResetDate: today, shieldActive: false });
+        setShieldActive(false);
       }
 
       setTodayGoalAchieved(todayAchieved);
@@ -104,6 +123,7 @@ export default function HomeScreen() {
         if (delta !== 0) await updateUserStats({ todaySteps: healthSteps, accumulatedSteps: newAcc });
 
         pedometerSub.current = startStepCountSubscription((stepsFromSub) => {
+          if (isCheatingRef.current) return; // 꼼수 작동 시 걸음수 업데이트 차단
           const total = baseStepsRef.current + stepsFromSub;
           const d     = total - lastTotalRef.current;
           if (d > 0) {
@@ -158,7 +178,56 @@ export default function HomeScreen() {
       Alert.alert('✅ 만보 달성!', `누적 달성일: ${nextDays}일 (+100P)`);
   }, [dailyGoalAchievements, todayGoalAchieved, nickname]);
 
+  // 꼼수 감지용 자이로 센서 등록
+  useEffect(() => {
+    let shakeCount = 0;
+    let lastUpdate = 0;
+    let subscription = null;
+
+    Accelerometer.setUpdateInterval(100); // 10Hz
+    subscription = Accelerometer.addListener(data => {
+      const { x, y, z } = data;
+      const magnitude = Math.sqrt(x * x + y * y + z * z);
+      const now = Date.now();
+
+      if (magnitude > 2.2) {
+        if (now - lastUpdate > 150) {
+          shakeCount++;
+          lastUpdate = now;
+          if (shakeCount >= 12) {
+            isCheatingRef.current = true;
+            setCheatAlertVisible(true);
+            setTimeout(() => {
+              isCheatingRef.current = false;
+              shakeCount = 0;
+            }, 5000);
+          }
+        }
+      }
+
+      if (now - lastUpdate > 2500) {
+        shakeCount = Math.max(0, shakeCount - 1);
+      }
+    });
+
+    return () => {
+      if (subscription) subscription.remove();
+    };
+  }, []);
+
+  // 듀오 걸음수 시뮬레이션
+  useEffect(() => {
+    if (duoName) {
+      const base = Math.floor(steps * 0.95) + 4200;
+      setDuoSteps(base);
+    }
+  }, [steps, duoName]);
+
   const handleAddManualSteps = async (amount) => {
+    if (isCheatingRef.current) {
+      Alert.alert('꼼수 방지', '치팅이 감지되어 걸음수 수동 추가가 차단되었습니다!');
+      return;
+    }
     const nextSteps = steps + amount;
     const prevMile  = Math.floor(accumulatedSteps / 1000);
     const nextAcc   = accumulatedSteps + amount;
@@ -178,15 +247,43 @@ export default function HomeScreen() {
   const handleWarningSMS = async () => {
     if (steps >= targetSteps) { Alert.alert('🏆 이미 달성!', '오늘 목표를 달성했어요!'); return; }
     if (contacts.length === 0) { Alert.alert('연락처 없음', '설정 탭에서 경고 연락처를 등록해주세요.'); return; }
+    
+    // 실드가 활성화되어 있다면 벌칙 발송을 하루 면제!
+    if (shieldActive) {
+      Alert.alert('🛡️ 실드 방어 발동!', '벌칙 방지 실드가 작동하여 오늘 하루 경고 문자 발송을 면제받았습니다! 실드가 1회 소모됩니다.', [
+        {
+          text: '확인',
+          onPress: async () => {
+            setShieldActive(false);
+            await updateUserStats({ shieldActive: false });
+          }
+        }
+      ]);
+      return;
+    }
+
     Alert.alert('🚨 경고 문자 발송', `오늘 ${steps.toLocaleString()}보 / 목표 ${targetSteps.toLocaleString()}보\n연락처 1명에게 경고 문자를 보냅니다.`,
       [{ text: '취소', style: 'cancel' }, {
         text: '보내기', onPress: async () => {
-          const phones = contacts.map(c => typeof c === 'string' ? c : c.phone).filter(Boolean);
-          const ok = await sendRandomWarningSMS(phones);
-          if (ok) {
-            const p = Math.max(0, pointsRef.current - 20);
-            pointsRef.current = p; setPoints(p);
-            await updateUserStats({ points: p });
+          try {
+            setIsGeneratingSMS(true);
+            // AI 킹받는 문자 생성
+            const aiMsg = await generateAIPenaltySMS(steps, nickname, null, duoName || null);
+            setIsGeneratingSMS(false);
+
+            const phones = contacts.map(c => typeof c === 'string' ? c : c.phone).filter(Boolean);
+            const ok = await sendRandomWarningSMS(phones, aiMsg);
+            if (ok) {
+              const p = Math.max(0, pointsRef.current - 20);
+              pointsRef.current = p; setPoints(p);
+              await updateUserStats({ points: p });
+            }
+          } catch (e) {
+            setIsGeneratingSMS(false);
+            console.error("Failed to generate AI SMS:", e);
+            Alert.alert('AI 작문 실패', '기본 사죄 문자로 발송합니다.');
+            const phones = contacts.map(c => typeof c === 'string' ? c : c.phone).filter(Boolean);
+            await sendRandomWarningSMS(phones);
           }
         }
       }]
@@ -201,15 +298,46 @@ export default function HomeScreen() {
   const lvlColors  = LEVEL_COLORS[charInfo.level];
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+    <View style={{ flex: 1 }}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
-      {/* ─── 헤더 ─── */}
-      <LinearGradient colors={['#FF4D80', '#FF8FB1']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.header}>
-        <Text style={styles.logo}>🏃 핑키 피트니스</Text>
-        <View style={styles.pointBadge}>
-          <Text style={styles.pointText}>⚡ {points} P</Text>
-        </View>
-      </LinearGradient>
+        {/* ─── 헤더 ─── */}
+        <LinearGradient colors={['#FF4D80', '#FF8FB1']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.header}>
+          <Text style={styles.logo}>🏃 핑키 피트니스</Text>
+          <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+            {shieldActive && (
+              <View style={styles.shieldBadge}>
+                <Text style={styles.shieldBadgeText}>🛡️ 실드 활성</Text>
+              </View>
+            )}
+            <View style={styles.pointBadge}>
+              <Text style={styles.pointText}>⚡ {points} P</Text>
+            </View>
+          </View>
+        </LinearGradient>
+
+        {/* ─── 👥 2인 연대책임 듀오 현황판 ─── */}
+        {duoName ? (
+          <View style={styles.duoCard}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={styles.duoTitle}>👥 2인 연대책임 챌린지</Text>
+              <View style={styles.duoBadge}>
+                <Text style={styles.duoBadgeText}>연대책임</Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 14, marginTop: 12, alignItems: 'center' }}>
+              <View style={{ flex: 1, backgroundColor: '#FAFAFC', padding: 12, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: '#FFEBF0' }}>
+                <Text style={{ fontSize: 11, color: '#FF4D80', fontWeight: '800' }}>나 ({nickname})</Text>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: '#1C1C28', marginTop: 4 }}>{steps.toLocaleString()}보</Text>
+              </View>
+              <Text style={{ fontSize: 16, color: '#DCDCE6', fontWeight: '900' }}>vs</Text>
+              <View style={{ flex: 1, backgroundColor: '#FAFAFC', padding: 12, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: '#FFEBF0' }}>
+                <Text style={{ fontSize: 11, color: '#A78BFA', fontWeight: '800' }}>파트너 ({duoName})</Text>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: '#1C1C28', marginTop: 4 }}>{duoSteps.toLocaleString()}보</Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
 
       {/* ─── 걸음수 링 ─── */}
       <View style={styles.ringSection}>
@@ -320,7 +448,37 @@ export default function HomeScreen() {
         )}
       </View>
     </ScrollView>
-  );
+
+    {/* 💬 AI 사죄 문자 생성 로더 */}
+    {isGeneratingSMS && (
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(28,28,40,0.65)', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
+        <View style={{ backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, alignItems: 'center', borderWidth: 1.5, borderColor: '#FFE4EC', width: '80%' }}>
+          <Text style={{ fontSize: 44, marginBottom: 12 }}>💬</Text>
+          <Text style={{ fontSize: 16, fontWeight: '900', color: '#1C1C28', marginBottom: 4 }}>AI 반성문 작성 중...</Text>
+          <Text style={{ fontSize: 12, color: '#8A8A9A', textAlign: 'center', fontWeight: '500' }}>친구들의 화를 풀어줄 킹받는 사죄 멘트를 짜내는 중입니다.</Text>
+        </View>
+      </View>
+    )}
+
+    {/* 꼼수 감지 모달 */}
+    {cheatAlertVisible && (
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(28,28,40,0.85)', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: 24 }}>
+        <View style={{ backgroundColor: '#FFFFFF', borderRadius: 28, padding: 28, alignItems: 'center', width: '100%', borderWidth: 1.5, borderColor: '#FFE4EC' }}>
+          <Text style={{ fontSize: 64, marginBottom: 12 }}>🐷</Text>
+          <Text style={{ fontSize: 18, fontWeight: '900', color: '#1C1C28', marginBottom: 8 }}>🚨 꼼수 감지 경보!</Text>
+          <Text style={{ fontSize: 13, color: '#8A8A9A', textAlign: 'center', lineHeight: 21, marginBottom: 24, fontWeight: '500' }}>
+            비정상적인 흔들기가 감지되었습니다!{"\n"}
+            신체 활동만 올바르게 인정됩니다.{"\n"}
+            <Text style={{ color: '#FF4D80', fontWeight: '800' }}>걸음수 카운트가 5초간 동결됩니다.</Text>
+          </Text>
+          <TouchableOpacity onPress={() => setCheatAlertVisible(false)} style={{ backgroundColor: '#FF4D80', width: '100%', height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>반성하고 다시 걷기</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    )}
+  </View>
+);
 }
 
 const styles = StyleSheet.create({
@@ -413,4 +571,20 @@ const styles = StyleSheet.create({
   simLabel: { fontSize: 13, fontWeight: '800', color: '#A4A4B4', textAlign: 'center', marginBottom: 12, letterSpacing: 0.5 },
   simRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   simBtn: { borderRadius: 16, height: 48, alignItems: 'center', justifyContent: 'center' },
+
+  duoCard: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    padding: 20,
+    shadowColor: '#FF4D80', shadowOpacity: 0.04, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+    borderWidth: 1.5, borderColor: '#FFF0F3',
+  },
+  duoTitle: { fontSize: 14, fontWeight: '900', color: '#1C1C28' },
+  duoBadge: { backgroundColor: '#F5EFFB', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10 },
+  duoBadgeText: { fontSize: 10, color: '#A78BFA', fontWeight: '800' },
+  shieldBadge: { backgroundColor: '#D1FAE5', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20 },
+  shieldBadgeText: { fontSize: 12, color: '#065F46', fontWeight: '800' },
 });
